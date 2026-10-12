@@ -1,0 +1,6 @@
+{
+  "name": "SniperFX",
+  "description": "Institutional Forex & CFD top-down analysis, Smart Money sniper signals, and 50-year market masterclasses.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
