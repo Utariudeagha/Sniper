@@ -252,6 +252,239 @@ fun LiveChartsScreen(
             }
         }
 
+        // Real-Time TradingView Signal & Institutional Execution HUD
+        item {
+            val curSignal = signal
+            if (curSignal != null) {
+                val isBuy = curSignal.action == com.example.model.TradeAction.BUY_SNIPER
+                val isNoTrade = curSignal.action == com.example.model.TradeAction.NO_TRADE
+                val isPotential = curSignal.state == com.example.model.SignalState.POTENTIAL_DEVELOPING
+
+                val bannerColor = when {
+                    isNoTrade -> GoldPrimary
+                    isPotential -> CyanLight
+                    isBuy -> BullishGreen
+                    else -> BearishRed
+                }
+
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = ObsidianCard),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(
+                            1.dp,
+                            if (curSignal.confluenceScore >= 90) GoldPrimary.copy(alpha = 0.5f) else ObsidianCardBorder,
+                            RoundedCornerShape(16.dp)
+                        )
+                        .testTag("tv_signal_hud_card")
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        // Signal Status & Confluence Header
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                color = bannerColor.copy(alpha = 0.15f),
+                                shape = RoundedCornerShape(8.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, bannerColor.copy(alpha = 0.6f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = when {
+                                            isNoTrade -> Icons.Default.Shield
+                                            isPotential -> Icons.Default.HourglassBottom
+                                            isBuy -> Icons.Default.ArrowOutward
+                                            else -> Icons.Default.SouthEast
+                                        },
+                                        contentDescription = null,
+                                        tint = bannerColor,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = when {
+                                            isNoTrade -> "NO TRADE • CAPITAL PROTECTED"
+                                            isPotential -> "DEVELOPING SMC SETUP"
+                                            isBuy -> "CONFIRMED BUY SNIPER"
+                                            else -> "CONFIRMED SELL SNIPER"
+                                        },
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = bannerColor
+                                    )
+                                }
+                            }
+
+                            Surface(
+                                color = if (curSignal.confluenceScore >= 90) GoldPrimary.copy(alpha = 0.2f) else CyanDark.copy(alpha = 0.2f),
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Text(
+                                    text = "${curSignal.confluenceScore}% Confluence",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (curSignal.confluenceScore >= 90) GoldLight else CyanLight,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = "${curSignal.instrumentSymbol} • ${curSignal.instrumentName}",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextWhite
+                        )
+                        Text(
+                            text = "Conditioned on closed candles • ${curSignal.riskRewardRatio} Risk:Reward ratio",
+                            fontSize = 11.sp,
+                            color = TextMuted
+                        )
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // Price Levels Grid: Entry | SL | TP1 (1:3) | TP2 (1:5)
+                        if (!isNoTrade) {
+                            Surface(
+                                color = ObsidianSurface,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Column {
+                                            Text("SNIPER ENTRY", fontSize = 10.sp, color = TextMuted, fontWeight = FontWeight.SemiBold)
+                                            Text(
+                                                text = instrument.formatPrice(curSignal.entryPrice),
+                                                fontSize = 15.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = TextWhite
+                                            )
+                                        }
+
+                                        Column(horizontalAlignment = Alignment.End) {
+                                            Text("STOP LOSS (INVALIDATION)", fontSize = 10.sp, color = BearishRedLight, fontWeight = FontWeight.SemiBold)
+                                            Text(
+                                                text = "${instrument.formatPrice(curSignal.stopLossPrice)} (-${curSignal.riskPips} p)",
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = BearishRedLight
+                                            )
+                                        }
+                                    }
+
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(vertical = 10.dp),
+                                        color = ObsidianCardBorder
+                                    )
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Column {
+                                            Text("TAKE PROFIT 1 (1:3 RR)", fontSize = 10.sp, color = BullishGreenLight, fontWeight = FontWeight.SemiBold)
+                                            Text(
+                                                text = "${instrument.formatPrice(curSignal.takeProfit1Price)} (+${curSignal.tp1Pips} p)",
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = BullishGreenLight
+                                            )
+                                        }
+
+                                        Column(horizontalAlignment = Alignment.End) {
+                                            Text("TAKE PROFIT 2 (1:5 RR)", fontSize = 10.sp, color = GoldLight, fontWeight = FontWeight.SemiBold)
+                                            Text(
+                                                text = "${instrument.formatPrice(curSignal.takeProfit2Price)} (+${curSignal.tp2Pips} p)",
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = GoldLight
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(14.dp))
+                        }
+
+                        // SMC & ICT Technical Narrative Deep Dive
+                        Surface(
+                            color = ObsidianSurface,
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Icon(Icons.Default.Psychology, contentDescription = null, tint = CyanLight, modifier = Modifier.size(16.dp))
+                                    Text("INSTITUTIONAL ORDER FLOW & SMC MECHANICS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = CyanLight, letterSpacing = 0.5.sp)
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Text("Higher-Timeframe (HTF) Macro Bias:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = GoldLight)
+                                Text(curSignal.htfBias, fontSize = 11.sp, color = TextWhite, lineHeight = 16.sp)
+
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                Text("Lower-Timeframe (LTF) Execution Trigger:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = BullishGreenLight)
+                                Text(curSignal.ltfTrigger, fontSize = 11.sp, color = TextWhite, lineHeight = 16.sp)
+
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                Text("Market Maker Trap / Manipulation Note:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = BearishRedLight)
+                                Text(curSignal.manipulationNote, fontSize = 11.sp, color = TextSecondary, lineHeight = 16.sp)
+
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                Text("Fundamental Clearance:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = CyanLight)
+                                Text(curSignal.fundamentalClearance, fontSize = 11.sp, color = TextSecondary, lineHeight = 16.sp)
+
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                Text("Strict Invalidation Condition:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = GoldPrimary)
+                                Text(curSignal.invalidationConditions, fontSize = 11.sp, color = TextSecondary, lineHeight = 16.sp)
+                            }
+                        }
+
+                        // Smart Money Markers Chips if present
+                        if (curSignal.smcMarkers.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text("Active Institutional Zones on Chart:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextMuted)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                items(curSignal.smcMarkers) { marker ->
+                                    Surface(
+                                        color = ObsidianCardBorder,
+                                        shape = RoundedCornerShape(6.dp)
+                                    ) {
+                                        Text(
+                                            text = "${marker.label} (${"%.2f".format(marker.startPrice)}-${"%.2f".format(marker.endPrice)})",
+                                            fontSize = 10.sp,
+                                            color = GoldLight,
+                                            fontWeight = FontWeight.SemiBold,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Quick Risk Calculator Trigger
         item {
             Button(
@@ -274,47 +507,6 @@ fun LiveChartsScreen(
                 selectedTimeframe = timeframe,
                 onSelectTimeframe = { viewModel.selectTimeframe(it) }
             )
-        }
-
-        // Structural Insights Card
-        item {
-            Card(
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = ObsidianCard),
-                modifier = Modifier.fillMaxWidth().border(1.dp, ObsidianCardBorder, RoundedCornerShape(14.dp))
-            ) {
-                Column(modifier = Modifier.padding(14.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Icon(Icons.Default.Psychology, contentDescription = null, tint = CyanLight, modifier = Modifier.size(18.dp))
-                        Text("MARKET STRUCTURE & CONFLUENCE CONTEXT", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = CyanLight, letterSpacing = 1.sp)
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = signal?.manipulationNote ?: "Market makers engineering equal highs and retail liquidity traps before true expansion.",
-                        fontSize = 12.sp,
-                        color = TextWhite,
-                        lineHeight = 17.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Surface(
-                        color = ObsidianSurface,
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(10.dp)) {
-                            Text("HTF Narrative:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = GoldLight)
-                            Text(signal?.htfBias ?: "Macro order flow driving expansion.", fontSize = 11.sp, color = TextSecondary)
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text("LTF Confirmation:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = BullishGreenLight)
-                            Text(signal?.ltfTrigger ?: "5M Change of Character (CHoCH) with Fair Value Gap retest.", fontSize = 11.sp, color = TextSecondary)
-                        }
-                    }
-                }
-            }
         }
     }
 }

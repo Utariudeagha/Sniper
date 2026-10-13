@@ -73,6 +73,9 @@ class MarketViewModel : ViewModel() {
     private val _completedSignals = MutableStateFlow(MarketDataProvider.completedSignals)
     val completedSignals: StateFlow<List<SniperSignal>> = _completedSignals.asStateFlow()
 
+    private val _noTradeSignals = MutableStateFlow(MarketDataProvider.noTradeSignals)
+    val noTradeSignals: StateFlow<List<SniperSignal>> = _noTradeSignals.asStateFlow()
+
     private val _selectedSignal = MutableStateFlow<SniperSignal?>(MarketDataProvider.activeSniperSignals.first())
     val selectedSignal: StateFlow<SniperSignal?> = _selectedSignal.asStateFlow()
 
@@ -105,6 +108,9 @@ class MarketViewModel : ViewModel() {
     val riskDialogSignal: StateFlow<SniperSignal?> = _riskDialogSignal.asStateFlow()
 
     init {
+        _selectedSignal.value = _activeSignals.value.find { it.instrumentSymbol == _selectedInstrument.value.symbol }
+            ?: _potentialSignals.value.find { it.instrumentSymbol == _selectedInstrument.value.symbol }
+            ?: MarketDataProvider.noTradeSignals.find { it.instrumentSymbol == _selectedInstrument.value.symbol }
         updateChartAndConfluence(_selectedInstrument.value, _selectedTimeframe.value)
         startMarketDataPolling()
     }
@@ -136,6 +142,8 @@ class MarketViewModel : ViewModel() {
         _selectedInstrument.value = instrument
         _selectedSignal.value = _activeSignals.value.find { it.instrumentSymbol == instrument.symbol }
             ?: _potentialSignals.value.find { it.instrumentSymbol == instrument.symbol }
+            ?: MarketDataProvider.noTradeSignals.find { it.instrumentSymbol == instrument.symbol }
+            ?: TechnicalAnalysisEngine.generateSmcIctSignal(instrument, _candles.value)
         updateChartAndConfluence(instrument, _selectedTimeframe.value)
     }
 

@@ -44,66 +44,13 @@ fun SignalsScreen(
     val activeSignals by viewModel.activeSignals.collectAsState()
     val potentialSignals by viewModel.potentialSignals.collectAsState()
     val completedSignals by viewModel.completedSignals.collectAsState()
+    val noTradeItems by viewModel.noTradeSignals.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val watchlistSymbols by viewModel.watchlistSymbols.collectAsState()
 
     var showOnlyWatchlist by remember { mutableStateOf(false) }
 
-    // Simulated No Trade items for educational transparency
-    val noTradeItems = remember {
-        listOf(
-            SniperSignal(
-                id = "NOTRADE-USDJPY",
-                instrumentSymbol = "USDJPY",
-                instrumentName = "US Dollar / Japanese Yen",
-                action = TradeAction.NO_TRADE,
-                state = SignalState.NO_SETUP_PROTECTED,
-                entryPrice = 149.12,
-                stopLossPrice = 149.12,
-                takeProfit1Price = 149.12,
-                takeProfit2Price = 149.12,
-                riskPips = 0.0,
-                tp1Pips = 0.0,
-                tp2Pips = 0.0,
-                riskRewardRatio = "N/A",
-                confluenceScore = 48,
-                htfBias = "Daily Compression at 149.50 Resistance",
-                ltfTrigger = "No Liquidity Purge",
-                manipulationNote = "Consolidation Trap: Price compressed inside a 30-pip range without purging session extremes. Mandatory criteria not met.",
-                fundamentalClearance = "Caution: Upcoming Bank of Japan rhetoric creating two-way volatility.",
-                invalidationConditions = "Do not trade until Asian range is swept and followed by a 15M displacement candle.",
-                timeframesAlignment = emptyList(),
-                smcMarkers = emptyList(),
-                timestamp = "Real-Time Protection"
-            ),
-            SniperSignal(
-                id = "NOTRADE-EURCHF",
-                instrumentSymbol = "EURCHF",
-                instrumentName = "Euro / Swiss Franc",
-                action = TradeAction.NO_TRADE,
-                state = SignalState.NO_SETUP_PROTECTED,
-                entryPrice = 0.9415,
-                stopLossPrice = 0.9415,
-                takeProfit1Price = 0.9415,
-                takeProfit2Price = 0.9415,
-                riskPips = 0.0,
-                tp1Pips = 0.0,
-                tp2Pips = 0.0,
-                riskRewardRatio = "N/A",
-                confluenceScore = 38,
-                htfBias = "Low Volatility Sideways Drift",
-                ltfTrigger = "Lack of Institutional Volume",
-                manipulationNote = "Equal Highs Inducement: Retail double-top formed without institutional displacement. High probability of chop stop-out.",
-                fundamentalClearance = "SNB and ECB rate differentials flat.",
-                invalidationConditions = "Wait for clear 4H Order Block reaction before re-evaluating.",
-                timeframesAlignment = emptyList(),
-                smcMarkers = emptyList(),
-                timestamp = "Real-Time Protection"
-            )
-        )
-    }
-
-    val filteredSignals = remember(activeTab, activeSignals, potentialSignals, completedSignals, selectedCategory, showOnlyWatchlist, watchlistSymbols) {
+    val filteredSignals = remember(activeTab, activeSignals, potentialSignals, completedSignals, noTradeItems, selectedCategory, showOnlyWatchlist, watchlistSymbols) {
         val baseList = when (activeTab) {
             SignalsTab.CONFIRMED_SETUPS -> activeSignals
             SignalsTab.POTENTIAL_SETUPS -> potentialSignals

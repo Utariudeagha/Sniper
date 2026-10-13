@@ -275,13 +275,13 @@ fun SniperSignalCard(
                     colors = ButtonDefaults.buttonColors(containerColor = CyanDark)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.ShowChart,
+                        imageVector = Icons.Default.Bolt,
                         contentDescription = null,
-                        tint = TextWhite,
+                        tint = GoldLight,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Interactive Chart", fontSize = 12.sp, color = TextWhite)
+                    Text("TradingView Chart", fontSize = 12.sp, color = TextWhite, fontWeight = FontWeight.Bold)
                 }
             }
         }
