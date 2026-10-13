@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SniperFX — Institutional Trading Terminal & Signals</title>
+    <meta name="description" content="Real-time TradingView charts, 50-year institutional market maker analysis, top-down confluence matrix, and sniper entry signals.">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%230A0E17' stroke='%23F59E0B' stroke-width='5'/><circle cx='50' cy='50' r='20' fill='none' stroke='%2306B6D4' stroke-width='4'/><line x1='50' y1='10' x2='50' y2='90' stroke='%23F59E0B' stroke-width='3'/><line x1='10' y1='50' x2='90' y2='50' stroke='%23F59E0B' stroke-width='3'/></svg>">
+    <style>
+        :root {
+            --bg-obsidian: #0A0E17;
+            --surface-card: #111827;
+            --surface-subtle: #172033;
+            --border-card: #26354D;
+            --gold-primary: #F59E0B;
+            --gold-light: #FBBF24;
+            --cyan-accent: #06B6D4;
+            --cyan-light: #38BDF8;
+            --green-bullish: #10B981;
+            --red-bearish: #EF4444;
+            --text-white: #F8FAFC;
+            --text-muted: #94A3B8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-obsidian);
+            color: var(--text-white);
+            line-height: 1.5;
+            padding-bottom: 60px;
+        }
+
+        header {
+            background-color: var(--surface-card);
+            border-bottom: 1px solid var(--border-card);
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-badge {
+            background: linear-gradient(135deg, var(--gold-primary), #D97706);
+            color: var(--bg-obsidian);
+            font-weight: 900;
+            font-size: 16px;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .brand-title {
+            font-size: 20px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+        }
+
+        .brand-title span {
+            color: var(--gold-light);
+        }
+
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid var(--green-bullish);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #34D399;
+        }
+
+        .dot-live {
+            width: 8px;
+            height: 8px;
+            background-color: var(--green-bullish);
+            border-radius: 50%;
+            animation: pulse 1.8s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.85); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px 20px;
+        }
+
+        .grid-main {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 1024px) {
+            .grid-main {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background-color: var(--surface-card);
+            border: 1px solid var(--border-card);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--gold-light);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .pair-selectors {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            margin-bottom: 14px;
+        }
+
+        .pair-btn {
+            background: var(--surface-subtle);
+            border: 1px solid var(--border-card);
+            color: var(--text-white);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        .pair-btn:hover {
+            border-color: var(--cyan-accent);
+            color: var(--cyan-light);
+        }
+
+        .pair-btn.active {
+            background: var(--gold-primary);
+            color: var(--bg-obsidian);
+            border-color: var(--gold-light);
+        }
+
+        .chart-box {
+            width: 100%;
+            height: 560px;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #000;
+        }
+
+        .timeframe-row {
+            display: flex;
+            justify-content: space-between;
+            background: var(--surface-subtle);
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+
+        .trend-bullish { color: var(--green-bullish); font-weight: 700; }
+        .trend-bearish { color: var(--red-bearish); font-weight: 700; }
+        .trend-ranging { color: var(--text-muted); }
+
+        .signal-card {
+            background: var(--surface-subtle);
+            border: 1px solid var(--border-card);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 14px;
+        }
+
+        .signal-card.active-buy {
+            border-color: rgba(16, 185, 129, 0.6);
+        }
+
+        .signal-card.active-sell {
+            border-color: rgba(239, 68, 68, 0.6);
+        }
+
+        .signal-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .badge-buy {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--green-bullish);
+            border: 1px solid var(--green-bullish);
+        }
+
+        .badge-sell {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--red-bearish);
+            border: 1px solid var(--red-bearish);
+        }
+
+        .target-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            background: var(--surface-card);
+            padding: 10px;
+            border-radius: 8px;
+            margin: 12px 0;
+            text-align: center;
+        }
+
+        .target-item label {
+            display: block;
+            font-size: 9px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .target-item span {
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .calc-input {
+            width: 100%;
+            background: var(--surface-subtle);
+            border: 1px solid var(--border-card);
+            color: #fff;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .calc-input:focus {
+            outline: none;
+            border-color: var(--gold-primary);
+        }
+
+        .android-banner {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(6, 182, 212, 0.15));
+            border: 1px solid var(--gold-primary);
+            border-radius: 14px;
+            padding: 18px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .btn-apk {
+            background: var(--gold-primary);
+            color: var(--bg-obsidian);
+            font-weight: 800;
+            padding: 10px 18px;
+            border-radius: 8px;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.2s;
+        }
+
+        .btn-apk:hover {
+            background: var(--gold-light);
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand">
+            <div class="brand-badge">FX</div>
+            <div class="brand-title">SNIPER<span>FX</span></div>
+        </div>
+        <div class="header-status">
+            <div class="dot-live"></div>
+            <span>TRADINGVIEW REAL-TIME FEED ACTIVE</span>
+        </div>
+    </header>
+
+    <div class="container">
+
+        <!-- Android Notice & Web Terminal Banner -->
+        <div class="android-banner">
+            <div>
+                <h3 style="font-size: 16px; margin-bottom: 4px; color: var(--gold-light);">📱 SniperFX Native Android App & Web Terminal</h3>
+                <p style="font-size: 12px; color: var(--text-muted); max-width: 800px;">
+                    This repository contains the complete <strong>Native Android Jetpack Compose app</strong> (in <code>/app</code> module) and this live <strong>Web Trading Terminal</strong> deployed on Netlify. You can trade seamlessly on both mobile APK and desktop web!
+                </p>
+            </div>
+            <div>
+                <span style="font-size: 11px; background: rgba(6, 182, 212, 0.2); border: 1px solid var(--cyan-accent); padding: 6px 12px; border-radius: 6px; color: var(--cyan-light); font-weight: 700;">100% Free • Zero Paywall</span>
+            </div>
+        </div>
+
+        <div class="grid-main">
+            <!-- Left Column: Interactive TradingView Real-Time Chart -->
+            <div>
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">TradingView Advanced Real-Time Chart</span>
+                        <span style="font-size: 12px; color: var(--cyan-light); font-weight: 700;" id="current-pair-label">OANDA:XAUUSD</span>
+                    </div>
+
+                    <!-- Pair Switcher -->
+                    <div class="pair-selectors">
+                        <button class="pair-btn active" onclick="switchSymbol('OANDA:XAUUSD', 'Gold / USD')">XAUUSD (Gold)</button>
+                        <button class="pair-btn" onclick="switchSymbol('FX:EURUSD', 'Euro / USD')">EURUSD</button>
+                        <button class="pair-btn" onclick="switchSymbol('FX:GBPUSD', 'British Pound / USD')">GBPUSD</button>
+                        <button class="pair-btn" onclick="switchSymbol('FX:GBPJPY', 'Pound / Yen')">GBPJPY</button>
+                        <button class="pair-btn" onclick="switchSymbol('FX:AUDUSD', 'Aussie / USD')">AUDUSD</button>
+                        <button class="pair-btn" onclick="switchSymbol('NASDAQ:NDX', 'Nasdaq 100')">US100 (NDX)</button>
+                        <button class="pair-btn" onclick="switchSymbol('SP:SPX', 'S&P 500')">SPX500</button>
+                        <button class="pair-btn" onclick="switchSymbol('TVC:USOIL', 'WTI Crude')">USOIL</button>
+                        <button class="pair-btn" onclick="switchSymbol('BINANCE:BTCUSDT', 'Bitcoin / USDT')">BTCUSD</button>
+                    </div>
+
+                    <!-- TradingView Widget -->
+                    <div class="chart-box" id="tradingview_container"></div>
+                </div>
+
+                <!-- 8-Timeframe Confluence Matrix -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Institutional 8-Timeframe Confluence Matrix</span>
+                        <span style="color: var(--green-bullish); font-weight: 800; font-size: 13px;">94% Confluence Match</span>
+                    </div>
+                    <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">
+                        "Alignment of LTF price delivery with HTF bias is the highest level of mastery there is."
+                    </p>
+
+                    <div class="timeframe-row"><span>Monthly (MN)</span><span class="trend-bullish">Bullish • HTF Expansion BOS</span><span>Demand Zone Tapped</span></div>
+                    <div class="timeframe-row"><span>Weekly (W1)</span><span class="trend-bullish">Bullish • Protected Swing Low</span><span>Order Flow Aligned</span></div>
+                    <div class="timeframe-row"><span>Daily (D1)</span><span class="trend-bullish">Bullish • Internal BOS</span><span>Daily Bullish FVG</span></div>
+                    <div class="timeframe-row"><span>4-Hour (4H)</span><span class="trend-bullish">Bullish • Discount Order Block</span><span>Unmitigated 4H OB</span></div>
+                    <div class="timeframe-row"><span>1-Hour (1H)</span><span class="trend-bullish">Bullish • Session Low Sweep</span><span>Asian Range Purged</span></div>
+                    <div class="timeframe-row"><span>30-Min (30M)</span><span class="trend-bullish">Bullish • Displacement Bar</span><span>Imbalance Filled</span></div>
+                    <div class="timeframe-row"><span>15-Min (15M)</span><span class="trend-bullish">Bullish • MSS Confirmation</span><span>Institutional Inflow</span></div>
+                    <div class="timeframe-row"><span>5-Min (5M)</span><span class="trend-bullish">Bullish • CHoCH + FVG Retest</span><span>Sniper Limit Trigger</span></div>
+                </div>
+            </div>
+
+            <!-- Right Column: Live Signals & Risk Math -->
+            <div>
+                <!-- Confirmed Signals -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Confirmed Sniper Plans</span>
+                        <span style="font-size: 11px; background: rgba(245, 158, 11, 0.2); color: var(--gold-light); padding: 2px 8px; border-radius: 4px; font-weight: 700;">1:3 to 1:5 RR</span>
+                    </div>
+
+                    <!-- Signal 1: Gold -->
+                    <div class="signal-card active-buy">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span class="signal-badge badge-buy">BUY SNIPER</span>
+                            <span style="font-size: 12px; font-weight: 800;">XAUUSD (Gold)</span>
+                            <span style="color: var(--green-bullish); font-size: 11px; font-weight: 700;">94% Confluence</span>
+                        </div>
+                        <div class="target-grid">
+                            <div class="target-item"><label>Entry</label><span style="color: var(--cyan-light);">2654.00</span></div>
+                            <div class="target-item"><label>Stop Loss</label><span style="color: var(--red-bearish);">2646.00</span></div>
+                            <div class="target-item"><label>TP1 (1:3)</label><span style="color: var(--green-bullish);">2678.00</span></div>
+                            <div class="target-item"><label>TP2 (1:5)</label><span style="color: var(--gold-light);">2694.00</span></div>
+                        </div>
+                        <p style="font-size: 11px; color: var(--text-muted);">
+                            <strong>Market Maker Trap:</strong> Asian Session Low swept into London Open unmitigated 4H Bullish Order Block. 5M CHoCH confirmed on closed candle.
+                        </p>
+                    </div>
+
+                    <!-- Signal 2: GBPJPY -->
+                    <div class="signal-card active-sell">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span class="signal-badge badge-sell">SELL SNIPER</span>
+                            <span style="font-size: 12px; font-weight: 800;">GBPJPY</span>
+                            <span style="color: var(--green-bullish); font-size: 11px; font-weight: 700;">91% Confluence</span>
+                        </div>
+                        <div class="target-grid">
+                            <div class="target-item"><label>Entry</label><span style="color: var(--cyan-light);">194.95</span></div>
+                            <div class="target-item"><label>Stop Loss</label><span style="color: var(--red-bearish);">195.35</span></div>
+                            <div class="target-item"><label>TP1 (1:3)</label><span style="color: var(--green-bullish);">193.75</span></div>
+                            <div class="target-item"><label>TP2 (1:5)</label><span style="color: var(--gold-light);">192.95</span></div>
+                        </div>
+                        <p style="font-size: 11px; color: var(--text-muted);">
+                            <strong>Judas Swing:</strong> False breakout above 195.20 triggered retail breakout buyers, followed by strong downside displacement.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Position & Risk Calculator -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">50-Year Risk & Lot Calculator</span>
+                        <span style="font-size: 10px; color: var(--gold-light);">Default 0.5% Risk</span>
+                    </div>
+
+                    <label style="font-size: 11px; color: var(--text-muted);">Account Equity ($):</label>
+                    <input type="number" id="equity-input" class="calc-input" value="10000" oninput="calculateRisk()">
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <div>
+                            <label style="font-size: 11px; color: var(--text-muted);">Risk %:</label>
+                            <input type="number" id="risk-input" class="calc-input" value="0.5" step="0.1" oninput="calculateRisk()">
+                        </div>
+                        <div>
+                            <label style="font-size: 11px; color: var(--text-muted);">Stop Loss (Pips):</label>
+                            <input type="number" id="sl-input" class="calc-input" value="25" oninput="calculateRisk()">
+                        </div>
+                    </div>
+
+                    <div style="background: var(--surface-subtle); padding: 12px; border-radius: 8px; border: 1px solid var(--border-card); margin-top: 8px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+                            <span style="color: var(--text-muted);">Max Dollar Risk:</span>
+                            <span id="dollar-risk-text" style="color: var(--red-bearish); font-weight: 700;">-$50.00</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 800; margin-bottom: 4px;">
+                            <span>Recommended Lot Size:</span>
+                            <span id="lot-size-text" style="color: var(--gold-light);">0.20 Standard Lots</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                            <span style="color: var(--text-muted);">TP1 Payout (1:3 RR):</span>
+                            <span id="tp1-payout-text" style="color: var(--green-bullish); font-weight: 700;">+$150.00</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 12px; margin-top: 2px;">
+                            <span style="color: var(--text-muted);">TP2 Payout (1:5 RR):</span>
+                            <span id="tp2-payout-text" style="color: var(--gold-light); font-weight: 700;">+$250.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TradingView Embed Script -->
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+    <script type="text/javascript">
+        let currentSymbol = "OANDA:XAUUSD";
+
+        function loadTradingView(symbol) {
+            document.getElementById("tradingview_container").innerHTML = "";
+            new TradingView.widget({
+                "autosize": true,
+                "symbol": symbol,
+                "interval": "60",
+                "timezone": "Etc/UTC",
+                "theme": "dark",
+                "style": "1",
+                "locale": "en",
+                "toolbar_bg": "#0A0E17",
+                "enable_publishing": false,
+                "hide_top_toolbar": false,
+                "allow_symbol_change": true,
+                "save_image": false,
+                "container_id": "tradingview_container",
+                "backgroundColor": "#0A0E17",
+                "gridColor": "#172033"
+            });
+        }
+
+        function switchSymbol(symbol, label) {
+            currentSymbol = symbol;
+            document.getElementById("current-pair-label").innerText = symbol + " (" + label + ")";
+            const buttons = document.querySelectorAll('.pair-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            loadTradingView(symbol);
+        }
+
+        function calculateRisk() {
+            const equity = parseFloat(document.getElementById("equity-input").value) || 10000;
+            const riskPct = parseFloat(document.getElementById("risk-input").value) || 0.5;
+            const slPips = parseFloat(document.getElementById("sl-input").value) || 25;
+
+            const maxRisk = equity * (riskPct / 100.0);
+            const pipValuePerLot = 10.0;
+            const lotSize = slPips > 0 ? (maxRisk / (slPips * pipValuePerLot)).toFixed(2) : "0.01";
+
+            document.getElementById("dollar-risk-text").innerText = "-$" + maxRisk.toFixed(2);
+            document.getElementById("lot-size-text").innerText = lotSize + " Standard Lots";
+            document.getElementById("tp1-payout-text").innerText = "+$" + (maxRisk * 3).toFixed(2);
+            document.getElementById("tp2-payout-text").innerText = "+$" + (maxRisk * 5).toFixed(2);
+        }
+
+        // Initialize chart on load
+        window.onload = function() {
+            loadTradingView("OANDA:XAUUSD");
+            calculateRisk();
+        };
+    </script>
+</body>
+</html>
