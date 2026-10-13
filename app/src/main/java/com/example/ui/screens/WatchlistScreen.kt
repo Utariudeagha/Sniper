@@ -142,7 +142,7 @@ fun WatchlistScreen(
                 onToggleStar = { viewModel.toggleWatchlist(inst.symbol) },
                 onClick = {
                     viewModel.selectInstrument(inst)
-                    viewModel.navigateTo(AppScreen.CHART_DETAIL)
+                    viewModel.navigateTo(AppScreen.LIVE_CHARTS)
                 }
             )
         }

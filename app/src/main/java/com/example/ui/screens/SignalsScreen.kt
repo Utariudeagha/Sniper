@@ -27,7 +27,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.model.AssetCategory
+import com.example.model.SignalState
 import com.example.model.SniperSignal
+import com.example.model.TradeAction
 import com.example.ui.components.SniperSignalCard
 import com.example.ui.theme.*
 import com.example.viewmodel.MarketViewModel
@@ -47,11 +49,65 @@ fun SignalsScreen(
 
     var showOnlyWatchlist by remember { mutableStateOf(false) }
 
-    // Filter signals by category and watchlist
+    // Simulated No Trade items for educational transparency
+    val noTradeItems = remember {
+        listOf(
+            SniperSignal(
+                id = "NOTRADE-USDJPY",
+                instrumentSymbol = "USDJPY",
+                instrumentName = "US Dollar / Japanese Yen",
+                action = TradeAction.NO_TRADE,
+                state = SignalState.NO_SETUP_PROTECTED,
+                entryPrice = 149.12,
+                stopLossPrice = 149.12,
+                takeProfit1Price = 149.12,
+                takeProfit2Price = 149.12,
+                riskPips = 0.0,
+                tp1Pips = 0.0,
+                tp2Pips = 0.0,
+                riskRewardRatio = "N/A",
+                confluenceScore = 48,
+                htfBias = "Daily Compression at 149.50 Resistance",
+                ltfTrigger = "No Liquidity Purge",
+                manipulationNote = "Consolidation Trap: Price compressed inside a 30-pip range without purging session extremes. Mandatory criteria not met.",
+                fundamentalClearance = "Caution: Upcoming Bank of Japan rhetoric creating two-way volatility.",
+                invalidationConditions = "Do not trade until Asian range is swept and followed by a 15M displacement candle.",
+                timeframesAlignment = emptyList(),
+                smcMarkers = emptyList(),
+                timestamp = "Real-Time Protection"
+            ),
+            SniperSignal(
+                id = "NOTRADE-EURCHF",
+                instrumentSymbol = "EURCHF",
+                instrumentName = "Euro / Swiss Franc",
+                action = TradeAction.NO_TRADE,
+                state = SignalState.NO_SETUP_PROTECTED,
+                entryPrice = 0.9415,
+                stopLossPrice = 0.9415,
+                takeProfit1Price = 0.9415,
+                takeProfit2Price = 0.9415,
+                riskPips = 0.0,
+                tp1Pips = 0.0,
+                tp2Pips = 0.0,
+                riskRewardRatio = "N/A",
+                confluenceScore = 38,
+                htfBias = "Low Volatility Sideways Drift",
+                ltfTrigger = "Lack of Institutional Volume",
+                manipulationNote = "Equal Highs Inducement: Retail double-top formed without institutional displacement. High probability of chop stop-out.",
+                fundamentalClearance = "SNB and ECB rate differentials flat.",
+                invalidationConditions = "Wait for clear 4H Order Block reaction before re-evaluating.",
+                timeframesAlignment = emptyList(),
+                smcMarkers = emptyList(),
+                timestamp = "Real-Time Protection"
+            )
+        )
+    }
+
     val filteredSignals = remember(activeTab, activeSignals, potentialSignals, completedSignals, selectedCategory, showOnlyWatchlist, watchlistSymbols) {
         val baseList = when (activeTab) {
-            SignalsTab.ACTIVE_SNIPER -> activeSignals
+            SignalsTab.CONFIRMED_SETUPS -> activeSignals
             SignalsTab.POTENTIAL_SETUPS -> potentialSignals
+            SignalsTab.NO_TRADE_STATUS -> noTradeItems
             SignalsTab.COMPLETED_LEDGER -> completedSignals
         }
         baseList.filter { signal ->
@@ -77,7 +133,7 @@ fun SignalsScreen(
         contentPadding = PaddingValues(top = 12.dp, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Institutional Hero Header Card
+        // Hero Header Card
         item {
             Card(
                 shape = RoundedCornerShape(20.dp),
@@ -88,7 +144,6 @@ fun SignalsScreen(
                     .testTag("hero_header_card")
             ) {
                 Box(modifier = Modifier.fillMaxWidth()) {
-                    // Subtle background gradient & banner
                     Image(
                         painter = painterResource(id = R.drawable.img_forex_banner),
                         contentDescription = "Forex Terminal Art",
@@ -111,11 +166,7 @@ fun SignalsScreen(
                             )
                     )
 
-                    Column(
-                        modifier = Modifier
-                            .padding(16.dp)
-                    ) {
-                        // Live Session Status Badge
+                    Column(modifier = Modifier.padding(16.dp)) {
                         Surface(
                             color = BullishGreen.copy(alpha = 0.2f),
                             shape = RoundedCornerShape(20.dp),
@@ -133,7 +184,7 @@ fun SignalsScreen(
                                         .background(BullishGreen)
                                 )
                                 Text(
-                                    text = "PRIME KILLZONE: LONDON & NEW YORK OVERLAP",
+                                    text = "PRIME KILLZONE • DETERMINISTIC SIGNALS",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = BullishGreenLight
@@ -144,14 +195,14 @@ fun SignalsScreen(
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Text(
-                            text = "Institutional Sniper Confluence",
+                            text = "Signal Center & Trade Plans",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = TextWhite
                         )
 
                         Text(
-                            text = "50-Year Market Maker & Smart Money Top-Down Analysis Engine. Signals triggered only at 90%+ confluence.",
+                            text = "Conditioned strictly on closed candles and 1:3 to 1:5 RR. If criteria fail, NO TRADE is displayed to preserve capital.",
                             fontSize = 12.sp,
                             color = TextMuted,
                             lineHeight = 16.sp,
@@ -162,7 +213,7 @@ fun SignalsScreen(
             }
         }
 
-        // Section Tabs: Active Sniper | Potential | Completed
+        // Section Tabs: Confirmed | Potential | No Trade | Completed
         item {
             Surface(
                 color = ObsidianSurface,
@@ -177,8 +228,9 @@ fun SignalsScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     val tabs = listOf(
-                        Triple(SignalsTab.ACTIVE_SNIPER, "Sniper Calls", activeSignals.size),
+                        Triple(SignalsTab.CONFIRMED_SETUPS, "Confirmed", activeSignals.size),
                         Triple(SignalsTab.POTENTIAL_SETUPS, "Developing", potentialSignals.size),
+                        Triple(SignalsTab.NO_TRADE_STATUS, "No Trade", noTradeItems.size),
                         Triple(SignalsTab.COMPLETED_LEDGER, "Completed", completedSignals.size)
                     )
 
@@ -199,21 +251,21 @@ fun SignalsScreen(
                             ) {
                                 Text(
                                     text = label,
-                                    fontSize = 12.sp,
+                                    fontSize = 11.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     color = if (isSelected) ObsidianBackground else TextWhite
                                 )
-                                Spacer(modifier = Modifier.width(4.dp))
+                                Spacer(modifier = Modifier.width(3.dp))
                                 Surface(
                                     color = if (isSelected) ObsidianBackground.copy(alpha = 0.2f) else ObsidianSubtle,
                                     shape = CircleShape
                                 ) {
                                     Text(
                                         text = "$count",
-                                        fontSize = 10.sp,
+                                        fontSize = 9.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = if (isSelected) ObsidianBackground else GoldLight,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
                                     )
                                 }
                             }
@@ -223,101 +275,76 @@ fun SignalsScreen(
             }
         }
 
-        // Category Filter Chips & Watchlist Toggle
+        // Filter Chips
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    // Watchlist quick toggle pill
-                    item {
-                        FilterChip(
-                            selected = showOnlyWatchlist,
-                            onClick = { showOnlyWatchlist = !showOnlyWatchlist },
-                            label = { Text("★ Watchlist Only") },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = if (showOnlyWatchlist) Icons.Default.Star else Icons.Default.StarBorder,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp),
-                                    tint = if (showOnlyWatchlist) GoldLight else TextMuted
-                                )
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = GoldDark.copy(alpha = 0.3f),
-                                selectedLabelColor = GoldLight
-                            ),
-                            modifier = Modifier.testTag("filter_watchlist")
-                        )
-                    }
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                item {
+                    FilterChip(
+                        selected = showOnlyWatchlist,
+                        onClick = { showOnlyWatchlist = !showOnlyWatchlist },
+                        label = { Text("★ Watchlist Only") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = if (showOnlyWatchlist) Icons.Default.Star else Icons.Default.StarBorder,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = if (showOnlyWatchlist) GoldLight else TextMuted
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = GoldDark.copy(alpha = 0.3f),
+                            selectedLabelColor = GoldLight
+                        ),
+                        modifier = Modifier.testTag("filter_watchlist")
+                    )
+                }
 
-                    // Asset Categories
-                    items(AssetCategory.values()) { category ->
-                        val isSelected = selectedCategory == category
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { viewModel.setCategory(category) },
-                            label = { Text(category.displayName) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = CyanDark.copy(alpha = 0.3f),
-                                selectedLabelColor = CyanLight
-                            ),
-                            modifier = Modifier.testTag("filter_cat_${category.name}")
-                        )
-                    }
+                items(AssetCategory.values()) { category ->
+                    val isSelected = selectedCategory == category
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { viewModel.setCategory(category) },
+                        label = { Text(category.displayName) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = CyanDark.copy(alpha = 0.3f),
+                            selectedLabelColor = CyanLight
+                        ),
+                        modifier = Modifier.testTag("filter_cat_${category.name}")
+                    )
                 }
             }
         }
 
-        // Strict Discipline Banner (Zero False Signals Guarantee)
-        if (activeTab == SignalsTab.ACTIVE_SNIPER) {
+        // Capital Preservation Notice when in No Trade Tab
+        if (activeTab == SignalsTab.NO_TRADE_STATUS) {
             item {
                 Surface(
                     color = ObsidianCard,
                     shape = RoundedCornerShape(12.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, ObsidianCardBorder),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.4f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Surface(
-                            color = GoldPrimary.copy(alpha = 0.2f),
-                            shape = CircleShape,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.Shield,
-                                    contentDescription = null,
-                                    tint = GoldLight,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(Icons.Default.Shield, contentDescription = null, tint = GoldLight, modifier = Modifier.size(18.dp))
+                            Text("DISCIPLINED CAPITAL PRESERVATION", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = GoldLight)
                         }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Strict High-Probability Filter (90%+ Win Rate Target)",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TextWhite
-                            )
-                            Text(
-                                text = "If no A+ setup exists across all 8 timeframes, no signal is issued. Capital preservation is the trader's ultimate edge.",
-                                fontSize = 11.sp,
-                                color = TextMuted,
-                                lineHeight = 14.sp
-                            )
-                        }
+                        Text(
+                            text = "These pairs were algorithmically scanned and failed high-probability criteria (e.g. choppy consolidation, high spread, or scheduled news risk). No trade is permitted until conditions resolve.",
+                            fontSize = 11.sp,
+                            color = TextSecondary,
+                            lineHeight = 15.sp,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
                     }
                 }
             }
         }
 
-        // Signals List or Empty State
+        // Signals List
         if (filteredSignals.isEmpty()) {
             item {
                 Box(
@@ -335,13 +362,13 @@ fun SignalsScreen(
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = "NO HIGH PROBABILITY SETUP DETECTED",
+                            text = "NO QUALIFYING SETUPS",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = TextWhite
                         )
                         Text(
-                            text = "Market is in consolidation or high-impact news hazard. The system protects your capital until institutional liquidity purges.",
+                            text = "Market conditions do not currently provide a verified 1:3 to 1:5 setup. Capital remains protected.",
                             fontSize = 12.sp,
                             color = TextMuted,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,

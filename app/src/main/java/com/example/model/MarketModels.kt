@@ -18,16 +18,17 @@ enum class Timeframe(
     val code: String,
     val title: String,
     val isHTF: Boolean,
-    val role: String
+    val role: String,
+    val tvInterval: String // TradingView widget interval code
 ) {
-    MONTHLY("MN", "Monthly", true, "Macro Directional Bias & Yearly Order Flow"),
-    WEEKLY("W1", "Weekly", true, "Interbank Institutional Narrative & Swing POIs"),
-    DAILY("D1", "Daily", true, "Major Break of Structure (BOS) & Trend Filter"),
-    H4("4H", "4-Hour", true, "High-Probability Institutional Order Blocks & FVGs"),
-    H1("1H", "1-Hour", false, "Intermediate Market Structure & Liquidity Pools"),
-    M30("30M", "30-Min", false, "Session High/Low Inducement & Range Identification"),
-    M15("15M", "15-Min", false, "Change of Character (CHoCH) & Liquidity Sweeps"),
-    M5("5M", "5-Min", false, "Sniper Entry Trigger & Tight Risk Mitigation")
+    MONTHLY("MN", "Monthly", true, "Macro Directional Bias & Yearly Order Flow", "M"),
+    WEEKLY("W1", "Weekly", true, "Interbank Institutional Narrative & Swing POIs", "W"),
+    DAILY("D1", "Daily", true, "Major Break of Structure (BOS) & Trend Filter", "D"),
+    H4("4H", "4-Hour", true, "High-Probability Institutional Order Blocks & FVGs", "240"),
+    H1("1H", "1-Hour", false, "Intermediate Market Structure & Liquidity Pools", "60"),
+    M30("30M", "30-Min", false, "Session High/Low Inducement & Range Identification", "30"),
+    M15("15M", "15-Min", false, "Change of Character (CHoCH) & Liquidity Sweeps", "15"),
+    M5("5M", "5-Min", false, "Sniper Entry Trigger & Tight Risk Mitigation", "5")
 }
 
 /**
@@ -40,7 +41,7 @@ enum class TrendDirection(val label: String) {
 }
 
 /**
- * Candlestick data for interactive charts.
+ * Candlestick data for interactive charts and deterministic calculations.
  */
 data class Candlestick(
     val timestamp: Long,
@@ -48,13 +49,14 @@ data class Candlestick(
     val high: Double,
     val low: Double,
     val close: Double,
-    val volume: Long = 1000L
+    val volume: Long = 1000L,
+    val isClosed: Boolean = true
 ) {
     val isBullish: Boolean get() = close >= open
 }
 
 /**
- * Market instrument specification with live tick properties.
+ * Market instrument specification with live tick properties and official TradingView symbols.
  */
 data class MarketInstrument(
     val symbol: String,
@@ -69,6 +71,10 @@ data class MarketInstrument(
     val low24h: Double,
     val pipDecimals: Int = 4, // 2 for JPY/Gold, 4 for EUR/USD, 1 for US100
     val pipSize: Double = 0.0001,
+    val tradingViewSymbol: String, // e.g. "OANDA:XAUUSD", "FX:EURUSD", "BINANCE:BTCUSDT"
+    val dataProvider: String = "TradingView / Open Interbank Feed",
+    val feedStatus: DataFeedStatus = DataFeedStatus.INDICATIVE_REAL_TIME,
+    val lastUpdateTimestamp: Long = System.currentTimeMillis(),
     val isWatchlist: Boolean = false
 ) {
     fun formatPrice(price: Double): String {
@@ -96,11 +102,13 @@ data class TimeframeConfluence(
  * Fundamental economic context and news risk evaluation.
  */
 data class FundamentalContext(
-    val centralBankBias: String, // e.g. "Federal Reserve Hawkish / ECB Neutral"
-    val sentimentRating: String, // "Strong Bullish Catalyst", "Neutral", "High Volatility Warning"
-    val upcomingEvents: String, // e.g. "No High Impact Red-Folder News (Safe to Trade)"
-    val dxyCorrelation: String, // e.g. "Inverse DXY Alignment Confirmed"
-    val isSafeForExecution: Boolean
+    val centralBankBias: String,
+    val sentimentRating: String,
+    val upcomingEvents: String,
+    val dxyCorrelation: String,
+    val isSafeForExecution: Boolean,
+    val noTradeWindowActive: Boolean = false,
+    val dataSource: String = "Global Economic Calendar"
 )
 
 /**
@@ -129,22 +137,26 @@ enum class MarkerType {
 /**
  * Signal trigger state.
  */
-enum class SignalState {
-    ACTIVE_SNIPER,       // Confluence >= 88%, sniper entry active
-    POTENTIAL_DEVELOPING, // High potential, waiting for liquidity sweep or 5M trigger
-    NO_SETUP_PROTECTED,  // No high-probability confluence: disciplined capital protection
-    COMPLETED_TP1,       // Closed at TP 1 (1:3 RR)
-    COMPLETED_TP2,       // Closed at TP 2 (1:5 RR)
-    COMPLETED_SL         // Stop Loss hit
+enum class SignalState(val displayTitle: String) {
+    CONFIRMED_SETUP("Confirmed Setup"),
+    ACTIVE_SNIPER("Active Execution"),
+    POTENTIAL_DEVELOPING("Potential Setup (Developing)"),
+    NO_SETUP_PROTECTED("No Trade (Capital Protected)"),
+    INVALIDATED("Setup Invalidated"),
+    COMPLETED_TP1("Completed (TP1 Target Hit)"),
+    COMPLETED_TP2("Completed (TP2 Target Hit)"),
+    COMPLETED_TP3("Completed (TP3 Runner Hit)"),
+    COMPLETED_SL("Completed (Stop Loss Hit)")
 }
 
 enum class TradeAction {
     BUY_SNIPER,
-    SELL_SNIPER
+    SELL_SNIPER,
+    NO_TRADE
 }
 
 /**
- * Sniper Trading Signal model.
+ * Trading Signal & Plan model.
  */
 data class SniperSignal(
     val id: String,
@@ -156,19 +168,22 @@ data class SniperSignal(
     val stopLossPrice: Double,
     val takeProfit1Price: Double, // 1:3 RR
     val takeProfit2Price: Double, // 1:5 RR
+    val takeProfit3Price: Double = 0.0,
     val riskPips: Double,
     val tp1Pips: Double,
     val tp2Pips: Double,
-    val riskRewardRatio: String, // "1:3.0" or "1:5.0"
-    val confluenceScore: Int, // 0 - 100% (Sniper triggers require >= 88%)
-    val htfBias: String, // e.g. "Monthly & Daily Bullish Flow"
-    val ltfTrigger: String, // e.g. "5M Liquidity Sweep into 15M Bullish Order Block"
-    val manipulationNote: String, // e.g. "Asian Lows Swept at London Open (Judas Swing)"
-    val fundamentalClearance: String, // e.g. "US Dollar weakness post-FOMC minutes"
+    val riskRewardRatio: String, // "1:3.0", "1:5.0"
+    val confluenceScore: Int, // 0 - 100%
+    val htfBias: String,
+    val ltfTrigger: String,
+    val manipulationNote: String,
+    val fundamentalClearance: String,
+    val invalidationConditions: String = "M5 displacement closing beyond invalidation swing level",
     val timeframesAlignment: List<TimeframeConfluence>,
     val smcMarkers: List<SmartMoneyMarker>,
     val timestamp: String,
     val realizedGainPips: Double = 0.0,
     val realizedRMultiple: String = "",
-    val exitDate: String = ""
+    val exitDate: String = "",
+    val dataSource: String = "TradingView Verified Feed"
 )

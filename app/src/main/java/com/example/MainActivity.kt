@@ -2,11 +2,14 @@ package com.example
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -16,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -47,6 +51,16 @@ fun SniperFxApp(
 ) {
     val currentScreen by viewModel.currentScreen.collectAsState()
     val riskDialogSignal by viewModel.riskDialogSignal.collectAsState()
+    val dataInfo by viewModel.dataProviderInfo.collectAsState()
+
+    var showHubDrawer by remember { mutableStateOf(false) }
+
+    // Handle back button on sub-screens
+    if (currentScreen != AppScreen.DASHBOARD) {
+        BackHandler {
+            viewModel.navigateTo(AppScreen.DASHBOARD)
+        }
+    }
 
     // Risk Calculator Dialog
     if (riskDialogSignal != null) {
@@ -64,7 +78,8 @@ fun SniperFxApp(
                 title = {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.clickable { viewModel.navigateTo(AppScreen.DASHBOARD) }
                     ) {
                         Surface(
                             color = GoldPrimary,
@@ -99,20 +114,21 @@ fun SniperFxApp(
                                 )
                             }
                             Text(
-                                text = "50-Year Institutional Confluence",
+                                text = currentScreen.title,
                                 fontSize = 10.sp,
-                                color = TextMuted
+                                color = CyanLight
                             )
                         }
                     }
                 },
                 actions = {
-                    // Institutional Mode Pill
+                    // Feed Status Pill
                     Surface(
-                        color = CyanDark.copy(alpha = 0.25f),
+                        onClick = { viewModel.navigateTo(AppScreen.SETTINGS) },
+                        color = Color(dataInfo.status.badgeColorHex).copy(alpha = 0.2f),
                         shape = RoundedCornerShape(12.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, CyanAccent.copy(alpha = 0.5f)),
-                        modifier = Modifier.padding(end = 8.dp)
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(dataInfo.status.badgeColorHex)),
+                        modifier = Modifier.padding(end = 4.dp).testTag("feed_status_pill")
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -123,13 +139,13 @@ fun SniperFxApp(
                                 modifier = Modifier
                                     .size(6.dp)
                                     .clip(CircleShape)
-                                    .background(BullishGreen)
+                                    .background(Color(dataInfo.status.badgeColorHex))
                             )
                             Text(
-                                text = "A+ ONLY",
-                                fontSize = 10.sp,
+                                text = "TV LIVE",
+                                fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = CyanLight
+                                color = Color(dataInfo.status.badgeColorHex)
                             )
                         }
                     }
@@ -143,6 +159,18 @@ fun SniperFxApp(
                             imageVector = Icons.Default.Calculate,
                             contentDescription = "Risk Calculator",
                             tint = GoldLight
+                        )
+                    }
+
+                    // All Pages Navigation Hub Menu
+                    IconButton(
+                        onClick = { showHubDrawer = !showHubDrawer },
+                        modifier = Modifier.testTag("appbar_hub_menu")
+                    ) {
+                        Icon(
+                            imageVector = if (showHubDrawer) Icons.Default.Close else Icons.Default.GridView,
+                            contentDescription = "Page Hub",
+                            tint = TextWhite
                         )
                     }
                 },
@@ -165,19 +193,22 @@ fun SniperFxApp(
                     .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
                     .testTag("main_bottom_nav")
             ) {
-                val navItems = listOf(
-                    NavItem(AppScreen.SIGNALS, "Signals", Icons.Default.Bolt),
-                    NavItem(AppScreen.CHART_DETAIL, "Top-Down", Icons.Default.ShowChart),
-                    NavItem(AppScreen.WATCHLIST, "Watchlist", Icons.Default.Star),
-                    NavItem(AppScreen.ACADEMY, "Academy", Icons.Default.School),
-                    NavItem(AppScreen.RISK_CALCULATOR, "Risk Math", Icons.Default.Shield)
+                val primaryNavItems = listOf(
+                    NavItem(AppScreen.DASHBOARD, "Dashboard", Icons.Default.Dashboard),
+                    NavItem(AppScreen.LIVE_CHARTS, "Charts", Icons.Default.ShowChart),
+                    NavItem(AppScreen.MARKET_SCANNER, "Scanner", Icons.Default.Search),
+                    NavItem(AppScreen.SIGNAL_CENTER, "Signals", Icons.Default.Bolt),
+                    NavItem(AppScreen.SIGNAL_JOURNAL, "Journal", Icons.Default.Assessment)
                 )
 
-                navItems.forEach { item ->
+                primaryNavItems.forEach { item ->
                     val isSelected = currentScreen == item.screen
                     NavigationBarItem(
                         selected = isSelected,
-                        onClick = { viewModel.navigateTo(item.screen) },
+                        onClick = {
+                            showHubDrawer = false
+                            viewModel.navigateTo(item.screen)
+                        },
                         icon = {
                             Icon(
                                 imageVector = item.icon,
@@ -211,12 +242,107 @@ fun SniperFxApp(
                 .padding(innerPadding)
                 .background(ObsidianBackground)
         ) {
+            // Main content
             when (currentScreen) {
-                AppScreen.SIGNALS -> SignalsScreen(viewModel = viewModel)
-                AppScreen.CHART_DETAIL -> ChartDetailScreen(viewModel = viewModel)
+                AppScreen.DASHBOARD -> DashboardScreen(viewModel = viewModel)
+                AppScreen.LIVE_CHARTS -> LiveChartsScreen(viewModel = viewModel)
+                AppScreen.MARKET_SCANNER -> MarketScannerScreen(viewModel = viewModel)
+                AppScreen.SIGNAL_CENTER -> SignalsScreen(viewModel = viewModel)
                 AppScreen.WATCHLIST -> WatchlistScreen(viewModel = viewModel)
+                AppScreen.SIGNAL_JOURNAL -> SignalJournalScreen(viewModel = viewModel)
                 AppScreen.ACADEMY -> EducationScreen()
-                AppScreen.RISK_CALCULATOR -> RiskDisciplineScreen(viewModel = viewModel)
+                AppScreen.SETTINGS -> SettingsScreen(viewModel = viewModel)
+            }
+
+            // Quick Hub Drawer Overlay (giving 1-tap jump to any of the 8 pages)
+            if (showHubDrawer) {
+                Surface(
+                    color = ObsidianCard,
+                    shape = RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.5f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight()
+                        .align(Alignment.TopCenter)
+                        .testTag("page_hub_overlay")
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "ALL TERMINAL MODULES (8 PAGES)",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = GoldLight,
+                                letterSpacing = 1.sp
+                            )
+                            IconButton(onClick = { showHubDrawer = false }, modifier = Modifier.size(24.dp)) {
+                                Icon(Icons.Default.Close, contentDescription = null, tint = TextMuted)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        val allPages = listOf(
+                            Triple(AppScreen.DASHBOARD, "Dashboard", Icons.Default.Dashboard),
+                            Triple(AppScreen.LIVE_CHARTS, "Live Charts (TradingView)", Icons.Default.ShowChart),
+                            Triple(AppScreen.MARKET_SCANNER, "Market Scanner", Icons.Default.Search),
+                            Triple(AppScreen.SIGNAL_CENTER, "Signal Center", Icons.Default.Bolt),
+                            Triple(AppScreen.WATCHLIST, "Watchlist", Icons.Default.Star),
+                            Triple(AppScreen.SIGNAL_JOURNAL, "Signal Journal & Stats", Icons.Default.Assessment),
+                            Triple(AppScreen.ACADEMY, "Trading Academy", Icons.Default.School),
+                            Triple(AppScreen.SETTINGS, "Data Status & Settings", Icons.Default.Settings)
+                        )
+
+                        allPages.chunked(2).forEach { rowItems ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                rowItems.forEach { (screen, title, icon) ->
+                                    val isCurrent = currentScreen == screen
+                                    Surface(
+                                        onClick = {
+                                            viewModel.navigateTo(screen)
+                                            showHubDrawer = false
+                                        },
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = if (isCurrent) GoldDark.copy(alpha = 0.3f) else ObsidianSurface,
+                                        border = androidx.compose.foundation.BorderStroke(
+                                            1.dp,
+                                            if (isCurrent) GoldPrimary else ObsidianCardBorder
+                                        ),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = icon,
+                                                contentDescription = null,
+                                                tint = if (isCurrent) GoldLight else CyanLight,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Text(
+                                                text = title,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = if (isCurrent) GoldLight else TextWhite
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

@@ -2,36 +2,50 @@ package com.example.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.data.FundamentalAnalysisService
 import com.example.data.MarketDataProvider
+import com.example.data.MarketDataService
+import com.example.data.TechnicalAnalysisEngine
 import com.example.model.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlin.random.Random
 
-enum class AppScreen {
-    SIGNALS,
-    CHART_DETAIL,
-    WATCHLIST,
-    ACADEMY,
-    RISK_CALCULATOR
+enum class AppScreen(val title: String) {
+    DASHBOARD("Dashboard"),
+    LIVE_CHARTS("Live Charts"),
+    MARKET_SCANNER("Market Scanner"),
+    SIGNAL_CENTER("Signal Center"),
+    WATCHLIST("Watchlist"),
+    SIGNAL_JOURNAL("Signal Journal"),
+    ACADEMY("Trading Academy"),
+    SETTINGS("Settings & Data Status")
 }
 
 enum class SignalsTab {
-    ACTIVE_SNIPER,
+    CONFIRMED_SETUPS,
     POTENTIAL_SETUPS,
+    NO_TRADE_STATUS,
     COMPLETED_LEDGER
+}
+
+enum class ChartDisplayMode {
+    TRADINGVIEW_ADVANCED,
+    NATIVE_SMC_CANVAS
 }
 
 class MarketViewModel : ViewModel() {
 
-    private val _currentScreen = MutableStateFlow(AppScreen.SIGNALS)
+    private val _currentScreen = MutableStateFlow(AppScreen.DASHBOARD)
     val currentScreen: StateFlow<AppScreen> = _currentScreen.asStateFlow()
 
-    private val _activeSignalsTab = MutableStateFlow(SignalsTab.ACTIVE_SNIPER)
+    private val _activeSignalsTab = MutableStateFlow(SignalsTab.CONFIRMED_SETUPS)
     val activeSignalsTab: StateFlow<SignalsTab> = _activeSignalsTab.asStateFlow()
+
+    private val _chartDisplayMode = MutableStateFlow(ChartDisplayMode.TRADINGVIEW_ADVANCED)
+    val chartDisplayMode: StateFlow<ChartDisplayMode> = _chartDisplayMode.asStateFlow()
 
     private val _selectedCategory = MutableStateFlow(AssetCategory.ALL)
     val selectedCategory: StateFlow<AssetCategory> = _selectedCategory.asStateFlow()
@@ -41,10 +55,10 @@ class MarketViewModel : ViewModel() {
     )
     val watchlistSymbols: StateFlow<Set<String>> = _watchlistSymbols.asStateFlow()
 
-    private val _instruments = MutableStateFlow(MarketDataProvider.defaultInstruments)
+    private val _instruments = MutableStateFlow(MarketDataService.initialInstruments)
     val instruments: StateFlow<List<MarketInstrument>> = _instruments.asStateFlow()
 
-    private val _selectedInstrument = MutableStateFlow(MarketDataProvider.defaultInstruments.first())
+    private val _selectedInstrument = MutableStateFlow(MarketDataService.initialInstruments.first())
     val selectedInstrument: StateFlow<MarketInstrument> = _selectedInstrument.asStateFlow()
 
     private val _selectedTimeframe = MutableStateFlow(Timeframe.H4)
@@ -68,36 +82,52 @@ class MarketViewModel : ViewModel() {
     private val _confluenceMatrix = MutableStateFlow<List<TimeframeConfluence>>(emptyList())
     val confluenceMatrix: StateFlow<List<TimeframeConfluence>> = _confluenceMatrix.asStateFlow()
 
+    private val _dataProviderInfo = MutableStateFlow(DataProviderInfo())
+    val dataProviderInfo: StateFlow<DataProviderInfo> = _dataProviderInfo.asStateFlow()
+
+    private val _journalMetrics = MutableStateFlow(MarketDataProvider.calculateJournalMetrics())
+    val journalMetrics: StateFlow<JournalMetrics> = _journalMetrics.asStateFlow()
+
+    private val _fundamentalEvents = MutableStateFlow(FundamentalAnalysisService.upcomingEconomicEvents)
+    val fundamentalEvents: StateFlow<List<EconomicEvent>> = _fundamentalEvents.asStateFlow()
+
+    // Risk Settings
+    private val _riskPercentPerTrade = MutableStateFlow(0.5) // Default strictly 0.5%
+    val riskPercentPerTrade: StateFlow<Double> = _riskPercentPerTrade.asStateFlow()
+
+    private val _accountEquity = MutableStateFlow(10000.0)
+    val accountEquity: StateFlow<Double> = _accountEquity.asStateFlow()
+
+    private val _dailyLossLimitPercent = MutableStateFlow(2.0)
+    val dailyLossLimitPercent: StateFlow<Double> = _dailyLossLimitPercent.asStateFlow()
+
     private val _riskDialogSignal = MutableStateFlow<SniperSignal?>(null)
     val riskDialogSignal: StateFlow<SniperSignal?> = _riskDialogSignal.asStateFlow()
 
     init {
         updateChartAndConfluence(_selectedInstrument.value, _selectedTimeframe.value)
-        startRealTimePriceFeed()
+        startMarketDataPolling()
     }
 
-    private fun startRealTimePriceFeed() {
+    private fun startMarketDataPolling() {
         viewModelScope.launch {
-            val random = Random(42)
             while (true) {
-                delay(2000L) // Pulse every 2 seconds
-                _instruments.value = _instruments.value.map { inst ->
-                    val deltaRatio = (random.nextDouble() - 0.49) * 0.0006
-                    val newPrice = inst.currentPrice * (1.0 + deltaRatio)
-                    val halfSpread = (inst.spreadPips * inst.pipSize) / 2.0
-                    inst.copy(
-                        currentPrice = newPrice,
-                        bidPrice = newPrice - halfSpread,
-                        askPrice = newPrice + halfSpread,
-                        change24hPercent = inst.change24hPercent + (deltaRatio * 10.0)
+                try {
+                    val (updatedInstruments, info) = MarketDataService.fetchLiveQuotes(_instruments.value)
+                    _instruments.value = updatedInstruments
+                    _dataProviderInfo.value = info
+
+                    // Sync currently selected instrument
+                    val currentUpdated = updatedInstruments.find { it.symbol == _selectedInstrument.value.symbol }
+                    if (currentUpdated != null) {
+                        _selectedInstrument.value = currentUpdated
+                    }
+                } catch (e: Exception) {
+                    _dataProviderInfo.value = _dataProviderInfo.value.copy(
+                        status = DataFeedStatus.INDICATIVE_REAL_TIME
                     )
                 }
-
-                // Keep selectedInstrument updated
-                val updatedCurrent = _instruments.value.find { it.symbol == _selectedInstrument.value.symbol }
-                if (updatedCurrent != null) {
-                    _selectedInstrument.value = updatedCurrent
-                }
+                delay(3000L) // Polling interval
             }
         }
     }
@@ -114,13 +144,22 @@ class MarketViewModel : ViewModel() {
         updateChartAndConfluence(_selectedInstrument.value, timeframe)
     }
 
+    fun toggleChartDisplayMode() {
+        _chartDisplayMode.value = if (_chartDisplayMode.value == ChartDisplayMode.TRADINGVIEW_ADVANCED) {
+            ChartDisplayMode.NATIVE_SMC_CANVAS
+        } else {
+            ChartDisplayMode.TRADINGVIEW_ADVANCED
+        }
+    }
+
     private fun updateChartAndConfluence(instrument: MarketInstrument, timeframe: Timeframe) {
-        _candles.value = MarketDataProvider.generateCandles(
+        val newCandles = MarketDataProvider.generateCandles(
             symbol = instrument.symbol,
             timeframe = timeframe,
             basePrice = instrument.currentPrice,
             count = 45
         )
+        _candles.value = newCandles
         _confluenceMatrix.value = MarketDataProvider.getConfluenceMatrix(instrument.symbol)
     }
 
@@ -131,7 +170,7 @@ class MarketViewModel : ViewModel() {
         _selectedSignal.value = signal
         _selectedTimeframe.value = Timeframe.M15
         updateChartAndConfluence(inst, Timeframe.M15)
-        _currentScreen.value = AppScreen.CHART_DETAIL
+        _currentScreen.value = AppScreen.LIVE_CHARTS
     }
 
     fun toggleWatchlist(symbol: String) {
@@ -166,5 +205,11 @@ class MarketViewModel : ViewModel() {
 
     fun closeRiskCalculator() {
         _riskDialogSignal.value = null
+    }
+
+    fun updateRiskSettings(equity: Double, riskPct: Double, dailyLossPct: Double) {
+        _accountEquity.value = equity
+        _riskPercentPerTrade.value = riskPct
+        _dailyLossLimitPercent.value = dailyLossPct
     }
 }
