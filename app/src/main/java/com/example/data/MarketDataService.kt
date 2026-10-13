@@ -406,4 +406,88 @@ object MarketDataService {
             Pair(updatedList, info)
         }
     }
+
+    /**
+     * Fetches real live OHLC candles from Binance open public API for crypto.
+     */
+    suspend fun fetchRealCryptoCandles(interval: String = "15m", limit: Int = 45): List<Candlestick> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val url = "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=$interval&limit=$limit"
+                val request = Request.Builder().url(url).build()
+                val response = httpClient.newCall(request).execute()
+                if (response.isSuccessful) {
+                    val body = response.body?.string()
+                    if (!body.isNullOrBlank()) {
+                        val jsonArray = org.json.JSONArray(body)
+                        val candles = mutableListOf<Candlestick>()
+                        for (i in 0 until jsonArray.length()) {
+                            val kline = jsonArray.getJSONArray(i)
+                            val timestamp = kline.getLong(0)
+                            val open = kline.getString(1).toDouble()
+                            val high = kline.getString(2).toDouble()
+                            val low = kline.getString(3).toDouble()
+                            val close = kline.getString(4).toDouble()
+                            val volume = kline.getString(5).toDouble()
+
+                            val sdf = java.text.SimpleDateFormat("HH:mm", java.util.Locale.US)
+                            val timeStr = sdf.format(java.util.Date(timestamp))
+
+                            candles.add(
+                                Candlestick(
+                                    timestamp = timestamp,
+                                    open = open,
+                                    high = high,
+                                    low = low,
+                                    close = close,
+                                    volume = volume.toLong()
+                                )
+                            )
+                        }
+                        if (candles.isNotEmpty()) return@withContext candles
+                    }
+                }
+            } catch (e: Exception) {
+                // Fallback handled by caller
+            }
+            emptyList()
+        }
+    }
+
+    /**
+     * Tests and verifies an external institutional API connection (TwelveData, Finnhub, Alpha Vantage).
+     */
+    suspend fun testExternalApiConnection(provider: String, apiKey: String): Pair<Boolean, String> {
+        return withContext(Dispatchers.IO) {
+            if (apiKey.isBlank()) {
+                return@withContext Pair(false, "API key cannot be empty")
+            }
+            try {
+                val startTime = System.currentTimeMillis()
+                val testUrl = when (provider.uppercase()) {
+                    "TWELVEDATA" -> "https://api.twelvedata.com/time_series?symbol=EUR/USD&interval=1min&apikey=$apiKey&outputsize=1"
+                    "FINNHUB" -> "https://finnhub.io/api/v1/quote?symbol=BINANCE:BTCUSDT&token=$apiKey"
+                    "ALPHAVANTAGE" -> "https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=EUR&to_currency=USD&apikey=$apiKey"
+                    else -> "https://api.binance.com/api/v3/ping"
+                }
+
+                val request = Request.Builder().url(testUrl).build()
+                val response = httpClient.newCall(request).execute()
+                val latency = System.currentTimeMillis() - startTime
+                if (response.isSuccessful) {
+                    val body = response.body?.string() ?: ""
+                    if (body.contains("Error") || body.contains("Invalid") || body.contains("Forbidden") || body.contains("unauthorized")) {
+                        Pair(false, "Provider rejected key: Invalid credentials or expired tier")
+                    } else {
+                        Pair(true, "Successfully connected to $provider (${latency}ms latency)")
+                    }
+                } else {
+                    Pair(false, "HTTP ${response.code}: Provider rejected request")
+                }
+            } catch (e: Exception) {
+                Pair(false, "Network connection error: ${e.message}")
+            }
+        }
+    }
 }
+

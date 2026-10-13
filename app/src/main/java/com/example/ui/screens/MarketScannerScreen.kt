@@ -36,6 +36,7 @@ fun MarketScannerScreen(
     val activeSignals by viewModel.activeSignals.collectAsState()
     val potentialSignals by viewModel.potentialSignals.collectAsState()
     val watchlistSymbols by viewModel.watchlistSymbols.collectAsState()
+    val isScanningLive by viewModel.isScanningLive.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedCat by remember { mutableStateOf<AssetCategory?>(null) }
@@ -92,6 +93,26 @@ fun MarketScannerScreen(
                         lineHeight = 15.sp,
                         modifier = Modifier.padding(top = 2.dp)
                     )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Button(
+                        onClick = { viewModel.triggerLiveScan() },
+                        enabled = !isScanningLive,
+                        colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth().testTag("scanner_rescan_btn")
+                    ) {
+                        if (isScanningLive) {
+                            CircularProgressIndicator(color = ObsidianBackground, modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Scanning Real-Time Markets...", fontSize = 11.sp, color = ObsidianBackground, fontWeight = FontWeight.Bold)
+                        } else {
+                            Icon(Icons.Default.Refresh, contentDescription = null, tint = ObsidianBackground, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("RUN LIVE TOP-DOWN SMC SCAN", fontSize = 11.sp, color = ObsidianBackground, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
             }
         }
@@ -155,7 +176,10 @@ fun MarketScannerScreen(
             val isStarred = watchlistSymbols.contains(inst.symbol)
 
             val statusText = when {
-                activeSignal != null -> "CONFIRMED SETUP (${activeSignal.action.name.replace("_", " ")})"
+                activeSignal != null -> {
+                    val pnlStr = if (activeSignal.liveCurrentPrice > 0.0) " • ${if (activeSignal.floatingPips >= 0) "+" else ""}${activeSignal.floatingPips}p" else ""
+                    "CONFIRMED (${activeSignal.action.name.replace("_", " ")})$pnlStr"
+                }
                 potentialSignal != null -> "POTENTIAL DEVELOPING"
                 else -> "NO TRADE (CONSOLIDATION)"
             }

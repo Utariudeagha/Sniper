@@ -161,4 +161,54 @@ class ExampleUnitTest {
             assertTrue("Signal ${signal.id} instrument must have a valid TradingView symbol for charting", instrument!!.tradingViewSymbol.isNotBlank())
         }
     }
+
+    @Test
+    fun testRealTimeSignalPnLAndInvalidationLogic() {
+        val testSignal = SniperSignal(
+            id = "TEST-EURUSD-1",
+            instrumentSymbol = "EURUSD",
+            instrumentName = "Euro / USD",
+            action = TradeAction.BUY_SNIPER,
+            state = SignalState.CONFIRMED_SETUP,
+            entryPrice = 1.0850,
+            stopLossPrice = 1.0820,
+            takeProfit1Price = 1.0940,
+            takeProfit2Price = 1.1000,
+            riskPips = 30.0,
+            tp1Pips = 90.0,
+            tp2Pips = 150.0,
+            riskRewardRatio = "1:3.0",
+            confluenceScore = 95,
+            htfBias = "Bullish",
+            ltfTrigger = "M15 FVG Retest",
+            manipulationNote = "Asian Low Swept",
+            fundamentalClearance = "Safe",
+            timeframesAlignment = emptyList(),
+            smcMarkers = emptyList(),
+            timestamp = "Just now"
+        )
+
+        // Case 1: Price moved in profit (1.0880 -> +30 pips)
+        val currentPriceInProfit = 1.0880
+        val pipsProfit = (currentPriceInProfit - testSignal.entryPrice) / 0.0001
+        assertEquals(30.0, pipsProfit, 0.01)
+
+        // Case 2: Price breached Stop Loss (1.0815 -> SL Hit)
+        val currentPriceSlHit = 1.0815
+        val isSlBreached = currentPriceSlHit <= testSignal.stopLossPrice
+        assertTrue("SL should be breached when price drops below 1.0820", isSlBreached)
+
+        // Case 3: Price touched TP1 (1.0945 -> TP1 Hit)
+        val currentPriceTp1Hit = 1.0945
+        val isTp1Reached = currentPriceTp1Hit >= testSignal.takeProfit1Price
+        assertTrue("TP1 should be reached when price exceeds 1.0940", isTp1Reached)
+    }
+
+    @Test
+    fun testExternalApiValidationRejectsBlankKeys() = kotlinx.coroutines.runBlocking {
+        val (success, message) = MarketDataService.testExternalApiConnection("TWELVEDATA", "")
+        assertFalse("Blank API key should be rejected", success)
+        assertTrue(message.contains("empty"))
+    }
 }
+

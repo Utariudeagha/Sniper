@@ -48,6 +48,7 @@ fun SignalsScreen(
     val noTradeItems by viewModel.noTradeSignals.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val watchlistSymbols by viewModel.watchlistSymbols.collectAsState()
+    val isScanningLive by viewModel.isScanningLive.collectAsState()
 
     val unviewedFailedCount = remember(failedSignals) { failedSignals.count { !it.isAcknowledged } }
     var showOnlyWatchlist by remember { mutableStateOf(false) }
@@ -158,6 +159,57 @@ fun SignalsScreen(
                             lineHeight = 16.sp,
                             modifier = Modifier.padding(top = 2.dp)
                         )
+                    }
+                }
+            }
+        }
+
+        // Real-Time Engine Action Bar
+        item {
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = ObsidianCard),
+                border = androidx.compose.foundation.BorderStroke(1.dp, ObsidianCardBorder),
+                modifier = Modifier.fillMaxWidth().testTag("live_engine_action_bar")
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp).fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(BullishGreen)
+                        )
+                        Column {
+                            Text("LIVE SMC/ICT ENGINE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextWhite)
+                            Text("Evaluating real-time ticks & market structure", fontSize = 9.sp, color = TextMuted)
+                        }
+                    }
+
+                    Button(
+                        onClick = { viewModel.triggerLiveScan() },
+                        enabled = !isScanningLive,
+                        colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.testTag("live_rescan_button")
+                    ) {
+                        if (isScanningLive) {
+                            CircularProgressIndicator(
+                                color = ObsidianBackground,
+                                modifier = Modifier.size(14.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Scanning...", fontSize = 11.sp, color = ObsidianBackground, fontWeight = FontWeight.Bold)
+                        } else {
+                            Icon(Icons.Default.Refresh, contentDescription = null, tint = ObsidianBackground, modifier = Modifier.size(15.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("SCAN NOW", fontSize = 11.sp, color = ObsidianBackground, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }

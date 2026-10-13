@@ -197,5 +197,10 @@ data class SniperSignal(
     val conditionsMet: List<String> = emptyList(),
     val remainingConditions: List<String> = emptyList(),
     val setupAge: String = "",
-    val expiryConditions: String = ""
+    val expiryConditions: String = "",
+    val liveCurrentPrice: Double = 0.0,
+    val floatingPips: Double = 0.0,
+    val floatingPnLUsd: Double = 0.0,
+    val isLiveCalculated: Boolean = true
 )
+

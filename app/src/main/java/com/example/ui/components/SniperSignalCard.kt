@@ -197,6 +197,41 @@ fun SniperSignalCard(
                 }
             }
 
+            // Real-Time Live Market Execution & Floating PnL
+            if (signal.liveCurrentPrice > 0.0 && !isFailed && signal.state != SignalState.NO_SETUP_PROTECTED) {
+                Spacer(modifier = Modifier.height(8.dp))
+                val isProfit = signal.floatingPips >= 0.0
+                val pnlColor = if (isProfit) BullishGreen else BearishRed
+                Surface(
+                    color = pnlColor.copy(alpha = 0.12f),
+                    shape = RoundedCornerShape(8.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, pnlColor.copy(alpha = 0.4f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(pnlColor))
+                            Text(
+                                text = "LIVE MARKET: %.4f".format(signal.liveCurrentPrice).trimEnd('0').trimEnd('.'),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextWhite
+                            )
+                        }
+                        Text(
+                            text = "${if (isProfit) "+" else ""}${signal.floatingPips} pips (${if (signal.floatingPnLUsd >= 0) "+$" else "-$"}${kotlin.math.abs(signal.floatingPnLUsd)})",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = pnlColor
+                        )
+                    }
+                }
+            }
+
             // Institutional & Market Maker Insight
             Spacer(modifier = Modifier.height(10.dp))
             Row(

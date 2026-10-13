@@ -414,10 +414,14 @@ fun TradingViewChart(
 
                         if (!isNoTrade && signal.entryPrice > 0.0) {
                             Spacer(modifier = Modifier.height(2.dp))
+                            val pnlStr = if (signal.liveCurrentPrice > 0.0) {
+                                val isProf = signal.floatingPips >= 0.0
+                                " | LIVE ${if (isProf) "+" else ""}${signal.floatingPips}p"
+                            } else ""
                             Text(
-                                text = "ENTRY ${instrument.formatPrice(signal.entryPrice)} | SL ${instrument.formatPrice(signal.stopLossPrice)} | TP1 ${instrument.formatPrice(signal.takeProfit1Price)}",
+                                text = "ENTRY ${instrument.formatPrice(signal.entryPrice)} | SL ${instrument.formatPrice(signal.stopLossPrice)}$pnlStr",
                                 fontSize = 9.sp,
-                                color = TextWhite,
+                                color = if (signal.floatingPips > 0) BullishGreenLight else if (signal.floatingPips < 0) BearishRedLight else TextWhite,
                                 fontWeight = FontWeight.Medium
                             )
                         }
