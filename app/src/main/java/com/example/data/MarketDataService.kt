@@ -19,6 +19,24 @@ object MarketDataService {
     // Base initial catalog with official TradingView symbols
     val initialInstruments = listOf(
         MarketInstrument(
+            symbol = "EURUSD",
+            name = "Euro / US Dollar",
+            category = AssetCategory.FOREX,
+            currentPrice = 1.0856,
+            bidPrice = 1.08552,
+            askPrice = 1.08568,
+            spreadPips = 1.6,
+            change24hPercent = 0.42,
+            high24h = 1.0892,
+            low24h = 1.0825,
+            pipDecimals = 4,
+            pipSize = 0.0001,
+            tradingViewSymbol = "FX:EURUSD",
+            dataProvider = "TradingView / FXCM",
+            feedStatus = DataFeedStatus.LIVE_REAL_TIME,
+            isWatchlist = true
+        ),
+        MarketInstrument(
             symbol = "XAUUSD",
             name = "Gold / US Dollar",
             category = AssetCategory.COMMODITIES,
@@ -342,6 +360,7 @@ object MarketDataService {
                         val chf = rates.optDouble("CHF", 0.86)
                         val nzd = rates.optDouble("NZD", 1.63)
 
+                        if (eur > 0) priceUpdates["EURUSD"] = 1.0 / eur
                         if (aud > 0) priceUpdates["AUDUSD"] = 1.0 / aud
                         if (gbp > 0) priceUpdates["GBPUSD"] = 1.0 / gbp
                         if (jpy > 0) priceUpdates["USDJPY"] = jpy

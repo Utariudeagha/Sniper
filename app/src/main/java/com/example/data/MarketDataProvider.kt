@@ -516,6 +516,18 @@ object MarketDataProvider {
                 SmartMoneyMarker(MarkerType.ORDER_BLOCK_BULLISH, 0.6690, 0.6708, "Daily Bullish OB", "Pending deep discount mitigation", false),
                 SmartMoneyMarker(MarkerType.SELL_SIDE_LIQUIDITY, 0.6710, 0.6715, "Asian Lows (Inducement)", "Target for manipulation sweep", false)
             ),
+            conditionsMet = listOf(
+                "HTF Bullish Bias aligned on Monthly & Daily",
+                "Price reached institutional discount zone (61.8% Fib)",
+                "Spread within institutional filter limits (0.9 pips)"
+            ),
+            remainingConditions = listOf(
+                "Asian Lows (0.6710) sell-side liquidity sweep pending",
+                "5-Minute Market Structure Shift (MSS) displacement candle close",
+                "Orderly retracement tap into M5 Fair Value Gap"
+            ),
+            setupAge = "Forming for 1h 25m",
+            expiryConditions = "Cancels if 4H candle closes below 0.6680 before sweep occurs",
             timestamp = "Developing Setup • Watching 5M Trigger",
             dataSource = "TradingView / FXCM Feed"
         ),
@@ -543,8 +555,94 @@ object MarketDataProvider {
             smcMarkers = listOf(
                 SmartMoneyMarker(MarkerType.FAIR_VALUE_GAP, 63900.0, 64300.0, "4H Imbalance Zone", "Unfilled buyer imbalance", false)
             ),
+            conditionsMet = listOf(
+                "Weekly Bullish Macro Trend structure intact",
+                "Price reached 4H FVG demand imbalance zone ($64,200)",
+                "No adverse macro regulatory announcements pending"
+            ),
+            remainingConditions = listOf(
+                "15-Minute Bullish Displacement candle confirmation",
+                "M5 Fair Value Gap retest execution trigger"
+            ),
+            setupAge = "Forming for 2h 40m",
+            expiryConditions = "Expires if price prints a 4H close below $63,500",
             timestamp = "Developing Setup • Awaiting 4H Fill",
             dataSource = "Binance / TradingView Feed"
+        )
+    )
+
+    /**
+     * Failed Signals & Invalidation Post-Mortem Ledger.
+     * Preserves original entry, stop-loss, targets, and market context.
+     * Displays observed failure price and available evidence.
+     * Tracks explicit user acknowledgement state.
+     */
+    val failedSignals = listOf(
+        SniperSignal(
+            id = "FAIL-EURUSD-099",
+            instrumentSymbol = "EURUSD",
+            instrumentName = "Euro / US Dollar",
+            action = TradeAction.SELL_SNIPER,
+            state = SignalState.FAILED,
+            entryPrice = 1.0920,
+            stopLossPrice = 1.0945,
+            takeProfit1Price = 1.0845,
+            takeProfit2Price = 1.0795,
+            riskPips = 25.0,
+            tp1Pips = 75.0,
+            tp2Pips = 125.0,
+            riskRewardRatio = "1:3.0 & 1:5.0",
+            confluenceScore = 84,
+            htfBias = "Daily Bearish Trend",
+            ltfTrigger = "15M Supply block retest after Asian high purge",
+            manipulationNote = "Aggressive second-leg spike engineered during European Central Bank headline release.",
+            fundamentalClearance = "Caution: ECB speaker headline generated unexpected rate-differential volatility.",
+            invalidationConditions = "Closed 5M candle above 1.0945.",
+            timeframesAlignment = getConfluenceMatrix("EURUSD"),
+            smcMarkers = listOf(
+                SmartMoneyMarker(MarkerType.ORDER_BLOCK_BEARISH, 1.0925, 1.0945, "15M Supply Block", "Supply zone breached", true)
+            ),
+            timestamp = "10:15 UTC • Invalidation Recorded",
+            realizedGainPips = -25.0,
+            realizedRMultiple = "-1.0 R",
+            exitDate = "11:28 UTC (Stop Loss Hit at 1.0948)",
+            dataSource = "TradingView / FXCM Feed",
+            failureReason = "Stop Loss breached by 3 pips (observed peak 1.0948) following unscheduled ECB rate commentary.",
+            failurePrice = 1.0948,
+            failureTimestamp = "Today, 11:28 UTC",
+            isAcknowledged = false
+        ),
+        SniperSignal(
+            id = "FAIL-AUDUSD-098",
+            instrumentSymbol = "AUDUSD",
+            instrumentName = "Australian Dollar / USD",
+            action = TradeAction.BUY_SNIPER,
+            state = SignalState.FAILED,
+            entryPrice = 0.6725,
+            stopLossPrice = 0.6705,
+            takeProfit1Price = 0.6785,
+            takeProfit2Price = 0.6825,
+            riskPips = 20.0,
+            tp1Pips = 60.0,
+            tp2Pips = 100.0,
+            riskRewardRatio = "1:3.0 & 1:5.0",
+            confluenceScore = 82,
+            htfBias = "4H Golden Pocket Retracement",
+            ltfTrigger = "5M CHoCH displacement candle",
+            manipulationNote = "Double-bottom support failed when institutional sell volume surged through Asian range lows.",
+            fundamentalClearance = "Commodity price sell-off pressured AUD.",
+            invalidationConditions = "Closed 5M candle below 0.6705.",
+            timeframesAlignment = getConfluenceMatrix("AUDUSD"),
+            smcMarkers = emptyList(),
+            timestamp = "Yesterday, 14:10 UTC",
+            realizedGainPips = -20.0,
+            realizedRMultiple = "-1.0 R",
+            exitDate = "Yesterday, 15:35 UTC (Stop Loss Hit at 0.6702)",
+            dataSource = "TradingView / FXCM Feed",
+            failureReason = "Asian range lows swept without institutional displacement; price continued lower to 0.6702.",
+            failurePrice = 0.6702,
+            failureTimestamp = "Yesterday, 15:35 UTC",
+            isAcknowledged = true
         )
     )
 

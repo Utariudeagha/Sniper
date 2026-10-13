@@ -40,6 +40,14 @@ fun LiveChartsScreen(
     val watchlistSymbols by viewModel.watchlistSymbols.collectAsState()
     val isWatchlist = watchlistSymbols.contains(instrument.symbol)
 
+    val activeSignals by viewModel.activeSignals.collectAsState()
+    val potentialSignals by viewModel.potentialSignals.collectAsState()
+    val failedSignals by viewModel.failedSignals.collectAsState()
+    val noTradeSignals by viewModel.noTradeSignals.collectAsState()
+    val allSignals = remember(activeSignals, potentialSignals, failedSignals, noTradeSignals) {
+        activeSignals + potentialSignals + failedSignals + noTradeSignals
+    }
+
     val confluenceScore = signal?.confluenceScore ?: 90
 
     LazyColumn(
@@ -240,7 +248,10 @@ fun LiveChartsScreen(
             if (chartMode == ChartDisplayMode.TRADINGVIEW_ADVANCED) {
                 TradingViewChart(
                     instrument = instrument,
-                    timeframe = timeframe
+                    timeframe = timeframe,
+                    signal = signal,
+                    allSignals = allSignals,
+                    onSelectSignal = { viewModel.openChartForSignal(it) }
                 )
             } else {
                 CandlestickChart(

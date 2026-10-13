@@ -143,6 +143,10 @@ enum class SignalState(val displayTitle: String) {
     POTENTIAL_DEVELOPING("Potential Setup (Developing)"),
     NO_SETUP_PROTECTED("No Trade (Capital Protected)"),
     INVALIDATED("Setup Invalidated"),
+    FAILED("Setup Failed (Stop Loss Hit)"),
+    EXPIRED("Setup Expired"),
+    CANCELLED("Setup Cancelled"),
+    UNVERIFIED("Unverified Market Data"),
     COMPLETED_TP1("Completed (TP1 Target Hit)"),
     COMPLETED_TP2("Completed (TP2 Target Hit)"),
     COMPLETED_TP3("Completed (TP3 Runner Hit)"),
@@ -185,5 +189,13 @@ data class SniperSignal(
     val realizedGainPips: Double = 0.0,
     val realizedRMultiple: String = "",
     val exitDate: String = "",
-    val dataSource: String = "TradingView Verified Feed"
+    val dataSource: String = "TradingView Verified Feed",
+    val failureReason: String = "",
+    val failurePrice: Double = 0.0,
+    val failureTimestamp: String = "",
+    val isAcknowledged: Boolean = false,
+    val conditionsMet: List<String> = emptyList(),
+    val remainingConditions: List<String> = emptyList(),
+    val setupAge: String = "",
+    val expiryConditions: String = ""
 )

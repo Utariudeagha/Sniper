@@ -27,6 +27,7 @@ enum class AppScreen(val title: String) {
 enum class SignalsTab {
     CONFIRMED_SETUPS,
     POTENTIAL_SETUPS,
+    FAILED_SETUPS,
     NO_TRADE_STATUS,
     COMPLETED_LEDGER
 }
@@ -69,6 +70,9 @@ class MarketViewModel : ViewModel() {
 
     private val _potentialSignals = MutableStateFlow(MarketDataProvider.potentialSignals)
     val potentialSignals: StateFlow<List<SniperSignal>> = _potentialSignals.asStateFlow()
+
+    private val _failedSignals = MutableStateFlow(MarketDataProvider.failedSignals)
+    val failedSignals: StateFlow<List<SniperSignal>> = _failedSignals.asStateFlow()
 
     private val _completedSignals = MutableStateFlow(MarketDataProvider.completedSignals)
     val completedSignals: StateFlow<List<SniperSignal>> = _completedSignals.asStateFlow()
@@ -142,9 +146,22 @@ class MarketViewModel : ViewModel() {
         _selectedInstrument.value = instrument
         _selectedSignal.value = _activeSignals.value.find { it.instrumentSymbol == instrument.symbol }
             ?: _potentialSignals.value.find { it.instrumentSymbol == instrument.symbol }
+            ?: _failedSignals.value.find { it.instrumentSymbol == instrument.symbol }
             ?: MarketDataProvider.noTradeSignals.find { it.instrumentSymbol == instrument.symbol }
             ?: TechnicalAnalysisEngine.generateSmcIctSignal(instrument, _candles.value)
         updateChartAndConfluence(instrument, _selectedTimeframe.value)
+    }
+
+    fun acknowledgeFailedSignal(signalId: String) {
+        _failedSignals.value = _failedSignals.value.map {
+            if (it.id == signalId) it.copy(isAcknowledged = true) else it
+        }
+    }
+
+    fun acknowledgeAllFailedSignals() {
+        _failedSignals.value = _failedSignals.value.map {
+            it.copy(isAcknowledged = true)
+        }
     }
 
     fun selectTimeframe(timeframe: Timeframe) {

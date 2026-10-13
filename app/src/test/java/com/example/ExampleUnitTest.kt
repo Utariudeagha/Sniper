@@ -82,4 +82,83 @@ class ExampleUnitTest {
             assertTrue("TP2 must be at least 5x risk", signal.tp2Pips >= signal.riskPips * 4.9)
         }
     }
+
+    @Test
+    fun testFailedSignalsAuditWorkflow() {
+        val failed = MarketDataProvider.failedSignals
+        assertTrue("Must have failed signals recorded for transparent audit", failed.isNotEmpty())
+
+        val sample = failed.first()
+        assertEquals(SignalState.FAILED, sample.state)
+        assertTrue("Must record failure reason", sample.failureReason.isNotBlank())
+        assertTrue("Must record observed failure price", sample.failurePrice > 0.0)
+
+        // Test explicit acknowledgement immutability:
+        val acknowledged = sample.copy(isAcknowledged = true)
+        assertTrue(acknowledged.isAcknowledged)
+        // Historical trade details must remain 100% untouched
+        assertEquals(sample.entryPrice, acknowledged.entryPrice, 0.0001)
+        assertEquals(sample.stopLossPrice, acknowledged.stopLossPrice, 0.0001)
+        assertEquals(sample.takeProfit1Price, acknowledged.takeProfit1Price, 0.0001)
+        assertEquals(sample.takeProfit2Price, acknowledged.takeProfit2Price, 0.0001)
+        assertEquals(sample.failurePrice, acknowledged.failurePrice, 0.0001)
+        assertEquals(sample.failureReason, acknowledged.failureReason)
+    }
+
+    @Test
+    fun testPotentialSignalsHaveCriteriaChecklists() {
+        val potentials = MarketDataProvider.potentialSignals
+        assertTrue("Must have potential signals", potentials.isNotEmpty())
+        for (pot in potentials) {
+            assertEquals(SignalState.POTENTIAL_DEVELOPING, pot.state)
+            assertTrue("Must specify satisfied conditions", pot.conditionsMet.isNotEmpty())
+            assertTrue("Must specify remaining activation conditions", pot.remainingConditions.isNotEmpty())
+            assertTrue("Must specify setup age or timestamp", pot.setupAge.isNotBlank() || pot.timestamp.isNotBlank())
+            assertTrue("Must specify expiry conditions", pot.expiryConditions.isNotBlank())
+        }
+    }
+
+    @Test
+    fun testIdempotencyAndNoDuplicateSignalIds() {
+        val allSignals = MarketDataProvider.activeSniperSignals +
+                MarketDataProvider.potentialSignals +
+                MarketDataProvider.failedSignals +
+                MarketDataProvider.noTradeSignals +
+                MarketDataProvider.completedSignals
+
+        val ids = allSignals.map { it.id }
+        val uniqueIds = ids.toSet()
+        assertEquals("Signal IDs must be strictly unique and idempotent", ids.size, uniqueIds.size)
+    }
+
+    @Test
+    fun testSignalLifecycleStatesCoverRequiredSpectrum() {
+        val states = SignalState.values().map { it.name }
+        assertTrue(states.contains("POTENTIAL_DEVELOPING"))
+        assertTrue(states.contains("CONFIRMED_SETUP"))
+        assertTrue(states.contains("ACTIVE_SNIPER"))
+        assertTrue(states.contains("FAILED"))
+        assertTrue(states.contains("EXPIRED"))
+        assertTrue(states.contains("CANCELLED"))
+        assertTrue(states.contains("UNVERIFIED"))
+        assertTrue(states.contains("COMPLETED_TP1"))
+        assertTrue(states.contains("COMPLETED_TP2"))
+        assertTrue(states.contains("NO_SETUP_PROTECTED"))
+    }
+
+    @Test
+    fun testAllSignalsAreLinkedToTradingViewChart() {
+        val allSignals = MarketDataProvider.activeSniperSignals +
+                MarketDataProvider.potentialSignals +
+                MarketDataProvider.failedSignals +
+                MarketDataProvider.noTradeSignals +
+                MarketDataProvider.completedSignals
+
+        val instruments = MarketDataService.initialInstruments
+        for (signal in allSignals) {
+            val instrument = instruments.find { it.symbol == signal.instrumentSymbol }
+            assertNotNull("Signal ${signal.id} symbol ${signal.instrumentSymbol} must match a known instrument", instrument)
+            assertTrue("Signal ${signal.id} instrument must have a valid TradingView symbol for charting", instrument!!.tradingViewSymbol.isNotBlank())
+        }
+    }
 }

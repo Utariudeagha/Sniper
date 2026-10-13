@@ -43,17 +43,20 @@ fun SignalsScreen(
     val activeTab by viewModel.activeSignalsTab.collectAsState()
     val activeSignals by viewModel.activeSignals.collectAsState()
     val potentialSignals by viewModel.potentialSignals.collectAsState()
+    val failedSignals by viewModel.failedSignals.collectAsState()
     val completedSignals by viewModel.completedSignals.collectAsState()
     val noTradeItems by viewModel.noTradeSignals.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val watchlistSymbols by viewModel.watchlistSymbols.collectAsState()
 
+    val unviewedFailedCount = remember(failedSignals) { failedSignals.count { !it.isAcknowledged } }
     var showOnlyWatchlist by remember { mutableStateOf(false) }
 
-    val filteredSignals = remember(activeTab, activeSignals, potentialSignals, completedSignals, noTradeItems, selectedCategory, showOnlyWatchlist, watchlistSymbols) {
+    val filteredSignals = remember(activeTab, activeSignals, potentialSignals, failedSignals, completedSignals, noTradeItems, selectedCategory, showOnlyWatchlist, watchlistSymbols) {
         val baseList = when (activeTab) {
             SignalsTab.CONFIRMED_SETUPS -> activeSignals
             SignalsTab.POTENTIAL_SETUPS -> potentialSignals
+            SignalsTab.FAILED_SETUPS -> failedSignals
             SignalsTab.NO_TRADE_STATUS -> noTradeItems
             SignalsTab.COMPLETED_LEDGER -> completedSignals
         }
@@ -160,7 +163,47 @@ fun SignalsScreen(
             }
         }
 
-        // Section Tabs: Confirmed | Potential | No Trade | Completed
+        // Unviewed Failed Signals Alert Banner
+        if (unviewedFailedCount > 0) {
+            item {
+                Card(
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = BearishRed.copy(alpha = 0.15f)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, BearishRed.copy(alpha = 0.6f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("unviewed_failed_alert_banner")
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Icon(Icons.Default.Warning, contentDescription = null, tint = BearishRedLight, modifier = Modifier.size(18.dp))
+                                Text("UNVIEWED FAILED SETUPS ($unviewedFailedCount)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = BearishRedLight)
+                            }
+                            TextButton(
+                                onClick = { viewModel.acknowledgeAllFailedSignals() },
+                                modifier = Modifier.testTag("ack_all_failures_btn")
+                            ) {
+                                Text("Acknowledge All", fontSize = 11.sp, color = TextWhite, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        Text(
+                            text = "1 or more setups hit invalidation swing levels or stop losses. Review failure post-mortem evidence below before taking fresh trades.",
+                            fontSize = 11.sp,
+                            color = TextSecondary,
+                            lineHeight = 15.sp,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // Section Tabs: Confirmed | Developing | Failed | No Trade | Completed
         item {
             Surface(
                 color = ObsidianSurface,
@@ -168,31 +211,35 @@ fun SignalsScreen(
                 border = androidx.compose.foundation.BorderStroke(1.dp, ObsidianCardBorder),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Row(
+                LazyRow(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     val tabs = listOf(
                         Triple(SignalsTab.CONFIRMED_SETUPS, "Confirmed", activeSignals.size),
                         Triple(SignalsTab.POTENTIAL_SETUPS, "Developing", potentialSignals.size),
+                        Triple(SignalsTab.FAILED_SETUPS, "Failed", failedSignals.size),
                         Triple(SignalsTab.NO_TRADE_STATUS, "No Trade", noTradeItems.size),
                         Triple(SignalsTab.COMPLETED_LEDGER, "Completed", completedSignals.size)
                     )
 
-                    tabs.forEach { (tab, label, count) ->
+                    items(tabs) { (tab, label, count) ->
                         val isSelected = activeTab == tab
+                        val isFailedTabWithUnviewed = tab == SignalsTab.FAILED_SETUPS && unviewedFailedCount > 0
                         Surface(
                             onClick = { viewModel.setSignalsTab(tab) },
                             shape = RoundedCornerShape(8.dp),
-                            color = if (isSelected) GoldPrimary else Color.Transparent,
-                            modifier = Modifier
-                                .weight(1f)
-                                .testTag("tab_${tab.name}")
+                            color = when {
+                                isSelected -> GoldPrimary
+                                isFailedTabWithUnviewed -> BearishRed.copy(alpha = 0.25f)
+                                else -> Color.Transparent
+                            },
+                            modifier = Modifier.testTag("tab_${tab.name}")
                         ) {
                             Row(
-                                modifier = Modifier.padding(vertical = 8.dp),
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
                                 horizontalArrangement = Arrangement.Center,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -202,17 +249,25 @@ fun SignalsScreen(
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     color = if (isSelected) ObsidianBackground else TextWhite
                                 )
-                                Spacer(modifier = Modifier.width(3.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
                                 Surface(
-                                    color = if (isSelected) ObsidianBackground.copy(alpha = 0.2f) else ObsidianSubtle,
+                                    color = when {
+                                        isSelected -> ObsidianBackground.copy(alpha = 0.2f)
+                                        isFailedTabWithUnviewed -> BearishRed
+                                        else -> ObsidianSubtle
+                                    },
                                     shape = CircleShape
                                 ) {
                                     Text(
                                         text = "$count",
                                         fontSize = 9.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (isSelected) ObsidianBackground else GoldLight,
-                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                        color = when {
+                                            isSelected -> ObsidianBackground
+                                            isFailedTabWithUnviewed -> TextWhite
+                                            else -> GoldLight
+                                        },
+                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
                                     )
                                 }
                             }
@@ -261,6 +316,58 @@ fun SignalsScreen(
                         ),
                         modifier = Modifier.testTag("filter_cat_${category.name}")
                     )
+                }
+            }
+        }
+
+        // Failed Setups Audit Notice
+        if (activeTab == SignalsTab.FAILED_SETUPS) {
+            item {
+                Surface(
+                    color = ObsidianCard,
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, BearishRed.copy(alpha = 0.5f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(Icons.Default.HistoryEdu, contentDescription = null, tint = BearishRedLight, modifier = Modifier.size(18.dp))
+                            Text("POST-MORTEM AUDIT TRAIL", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = BearishRedLight)
+                        }
+                        Text(
+                            text = "Failed setups preserve 100% of original entries, stop losses, and market context alongside observed failure prices and evidence. Acknowledging a setup dismisses its active alert banner while permanently preserving it in the historical record.",
+                            fontSize = 11.sp,
+                            color = TextSecondary,
+                            lineHeight = 15.sp,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // Potential Setups Dashboard Notice
+        if (activeTab == SignalsTab.POTENTIAL_SETUPS) {
+            item {
+                Surface(
+                    color = ObsidianCard,
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, CyanLight.copy(alpha = 0.4f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(Icons.Default.HourglassTop, contentDescription = null, tint = CyanLight, modifier = Modifier.size(18.dp))
+                            Text("DEVELOPING OPPORTUNITY PIPELINE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = CyanLight)
+                        }
+                        Text(
+                            text = "Setups currently meeting higher-timeframe narrative but awaiting lower-timeframe execution triggers (e.g. M5 CHoCH displacement or liquidity sweep). Promoted to Confirmed only when all entry criteria close.",
+                            fontSize = 11.sp,
+                            color = TextSecondary,
+                            lineHeight = 15.sp,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
                 }
             }
         }
@@ -331,7 +438,8 @@ fun SignalsScreen(
                     isWatchlist = watchlistSymbols.contains(signal.instrumentSymbol),
                     onToggleWatchlist = { viewModel.toggleWatchlist(signal.instrumentSymbol) },
                     onOpenChart = { viewModel.openChartForSignal(signal) },
-                    onCalculateRisk = { viewModel.openRiskCalculator(signal) }
+                    onCalculateRisk = { viewModel.openRiskCalculator(signal) },
+                    onAcknowledge = { viewModel.acknowledgeFailedSignal(signal.id) }
                 )
             }
         }
